@@ -2,6 +2,13 @@
 
 A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker containers, interact with them via a web dashboard, and extend them with plugins.
 
+<table>
+  <tr>
+    <td><img width="2576" height="1750" alt="Fleet Dashboard" src="https://github.com/user-attachments/assets/165078e2-322f-44c3-9b62-3fb75328ba04" /></td>
+    <td><img width="2574" height="1750" alt="Agent Chat" src="https://github.com/user-attachments/assets/29a8b022-9bb5-4090-bce4-833ef1380bb2" /></td>
+  </tr>
+</table>
+
 ## Features
 
 - Deploy agents as isolated Docker containers (powered by [nanobot](https://github.com/HKUDS/nanobot))
