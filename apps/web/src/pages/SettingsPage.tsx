@@ -1,4 +1,4 @@
-import { Key, Lock, Trash2, User } from 'lucide-react';
+import { Info, Key, Lock, Save, Trash2, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,23 @@ interface SettingsPageProps {
   username: string;
 }
 
+interface PresetSlot {
+  name: string;
+  placeholder: string;
+  tooltip?: string;
+}
+
+const PRESET_SLOTS: PresetSlot[] = [
+  { name: 'anthropic', placeholder: 'sk-ant-...' },
+  { name: 'openai', placeholder: 'sk-...' },
+  { name: 'gemini', placeholder: 'AIza...' },
+  {
+    name: 'brave',
+    placeholder: 'BSA...',
+    tooltip: 'Required for web search in agents that have webSearch enabled in their manifest.',
+  },
+];
+
 export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
   const { t } = useTranslation();
   const [username, setUsername] = useState(initialUsername);
@@ -24,6 +41,10 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  // Per-slot input values for preset slots
+  const [slotValues, setSlotValues] = useState<Record<string, string>>({});
+  const [slotSaving, setSlotSaving] = useState<Record<string, boolean>>({});
+  // Custom key form
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyValue, setNewKeyValue] = useState('');
   const [isLoadingKeys, setIsLoadingKeys] = useState(false);
@@ -40,6 +61,8 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
       console.error('Failed to load API keys:', err);
     }
   };
+
+  const isConfigured = (name: string) => apiKeys.some((k) => k.keyName === name);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +88,26 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
       toast.error(err instanceof Error ? err.message : t('settings.updateError'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveSlot = async (name: string) => {
+    const value = slotValues[name]?.trim();
+    if (!value) {
+      toast.error(t('settings.apiKeyNameAndValueRequired'));
+      return;
+    }
+
+    setSlotSaving((prev) => ({ ...prev, [name]: true }));
+    try {
+      await api.saveApiKey(name, value);
+      toast.success(t('settings.apiKeySaved'));
+      setSlotValues((prev) => ({ ...prev, [name]: '' }));
+      loadApiKeys();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('settings.apiKeyError'));
+    } finally {
+      setSlotSaving((prev) => ({ ...prev, [name]: false }));
     }
   };
 
@@ -102,6 +145,10 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
       toast.error(err instanceof Error ? err.message : t('settings.apiKeyError'));
     }
   };
+
+  // Custom keys = configured keys that are not preset slots
+  const presetNames = PRESET_SLOTS.map((s) => s.name);
+  const customKeys = apiKeys.filter((k) => !presetNames.includes(k.keyName));
 
   return (
     <div className="p-6 h-full overflow-auto">
@@ -199,37 +246,106 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
             </h2>
           </div>
 
-          {/* Keys list */}
-          <div className="space-y-2 mb-5">
-            {apiKeys.length === 0 ? (
-              <p className="text-xs text-neutral-500 py-2">{t('settings.noApiKeys')}</p>
-            ) : (
-              apiKeys.map((key) => (
-                <div
-                  key={key.id}
-                  className="flex items-center justify-between px-3 py-2 bg-white border border-neutral-200 rounded-md"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900 font-mono">{key.keyName}</p>
-                    <p className="text-xs text-neutral-400 mt-0.5">
-                      {new Date(key.createdAt).toLocaleDateString()}
-                    </p>
+          {/* Preset slots */}
+          <div className="space-y-3 mb-5">
+            {PRESET_SLOTS.map((slot) => {
+              const configured = isConfigured(slot.name);
+              return (
+                <div key={slot.name}>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-xs font-medium text-neutral-700 font-mono">
+                      {slot.name}
+                    </span>
+                    {configured && (
+                      <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
+                        {t('settings.configured')}
+                      </span>
+                    )}
+                    {slot.tooltip && (
+                      <div className="group relative ml-0.5">
+                        <Info className="w-3 h-3 text-neutral-400 cursor-help" />
+                        <div className="absolute left-0 bottom-full mb-1.5 w-56 bg-neutral-800 text-white text-xs rounded px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                          {slot.tooltip}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteApiKey(key.keyName)}
-                    className="text-neutral-400 hover:text-red-600 transition-colors p-1 rounded"
-                    title={t('settings.delete')}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      value={slotValues[slot.name] ?? ''}
+                      onChange={(e) =>
+                        setSlotValues((prev) => ({ ...prev, [slot.name]: e.target.value }))
+                      }
+                      placeholder={configured ? '••••••••••••••••' : slot.placeholder}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveSlot(slot.name);
+                      }}
+                      className="flex-1 px-3 py-1.5 text-sm bg-white border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveSlot(slot.name)}
+                      disabled={slotSaving[slot.name] || !slotValues[slot.name]?.trim()}
+                      className="px-2.5 py-1.5 bg-neutral-900 text-white text-xs rounded-md hover:bg-neutral-800 disabled:opacity-40 transition-colors flex items-center"
+                      title={t('settings.save')}
+                    >
+                      <Save className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteApiKey(slot.name)}
+                      disabled={!configured}
+                      className="px-2.5 py-1.5 text-neutral-400 hover:text-red-600 border border-neutral-200 bg-white rounded-md transition-colors disabled:opacity-0 disabled:pointer-events-none"
+                      title={t('settings.delete')}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
 
-          {/* Add key form */}
+          {/* Custom keys */}
+          {customKeys.length > 0 && (
+            <div className="mb-4 pt-4 border-t border-neutral-200">
+              <p className="text-xs text-neutral-400 uppercase tracking-wide mb-2">
+                {t('settings.otherKeys')}
+              </p>
+              <div className="space-y-2">
+                {customKeys.map((key) => (
+                  <div
+                    key={key.id}
+                    className="flex items-center justify-between px-3 py-2 bg-white border border-neutral-200 rounded-md"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-neutral-900 font-mono">
+                        {key.keyName}
+                      </p>
+                      <p className="text-xs text-neutral-400 mt-0.5">
+                        {new Date(key.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteApiKey(key.keyName)}
+                      className="text-neutral-400 hover:text-red-600 transition-colors p-1 rounded"
+                      title={t('settings.delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Custom key form */}
           <form onSubmit={handleAddApiKey} className="space-y-3 pt-4 border-t border-neutral-200">
+            <p className="text-xs text-neutral-400 uppercase tracking-wide">
+              {t('settings.customKey')}
+            </p>
             <div>
               <label htmlFor="keyName" className="block text-xs text-neutral-500 mb-1">
                 {t('settings.keyName')}
@@ -239,7 +355,7 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
                 type="text"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
-                placeholder="openai"
+                placeholder="my-provider"
                 className="w-full px-3 py-2 text-sm bg-white border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-neutral-900 focus:border-neutral-900 font-mono"
               />
             </div>

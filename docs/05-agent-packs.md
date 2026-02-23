@@ -16,7 +16,29 @@ A valid Agent Pack must follow a strict "File-First" architecture:
 └── /skills           # (Optional) Directory containing custom Python scripts specific to this agent
 ```
 
-## 3. Orchestrator Integration
+## 3. manifest.json Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Pack identifier |
+| `version` | string | yes | Semantic version |
+| `author` | string | no | Pack author |
+| `model` | string | yes | LLM model to use (e.g. `openai/gpt-4o`) |
+| `requiredEnvVars` | string[] | no | Extra API keys the agent needs (resolved from the vault) |
+| `webSearch` | boolean | no | Enable Brave Search. Requires a `brave` key in the vault. Silently disabled if the key is absent. |
+
+Example:
+```json
+{
+  "name": "my-agent",
+  "version": "1.0.0",
+  "author": "you",
+  "model": "openai/gpt-4o",
+  "webSearch": true
+}
+```
+
+## 4. Orchestrator Integration
 1. **Validation:** When the user imports an Agent Pack, the API parses `manifest.json` to ensure compatibility and prompts the user for any missing API keys.
 2. **Mounting:** When deploying the agent, the Orchestrator mounts this folder directly into the Nanobot Docker container (e.g., at `/app/config`).
 3. **Execution:** The Nanobot engine reads `SOUL.md` to build its system prompt and reads `TOOLS.md` to understand the MCP capabilities provided by the Dashboard.

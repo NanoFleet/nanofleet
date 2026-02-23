@@ -26,6 +26,7 @@ export function initDb() {
       pack_path text NOT NULL,
       container_id text,
       token text NOT NULL,
+      tags text,
       created_at integer NOT NULL
     )
   `);
@@ -39,47 +40,16 @@ export function initDb() {
       mcp_port integer NOT NULL,
       ui_port integer,
       container_name text NOT NULL,
+      token text NOT NULL DEFAULT '',
       status text DEFAULT 'running' NOT NULL,
       manifest_url text NOT NULL,
       sidebar_slot text,
+      tools_doc text,
+      replaces_native_features text,
+      generated_env_vars text,
       created_at integer NOT NULL
     )
   `);
-
-  // Migration: add ui_port column if it doesn't exist yet
-  try {
-    sqlite.exec('ALTER TABLE plugins ADD COLUMN ui_port integer');
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Migration: add token column if it doesn't exist yet
-  try {
-    sqlite.exec(`ALTER TABLE plugins ADD COLUMN token text NOT NULL DEFAULT ''`);
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Migration: add tools_doc column if it doesn't exist yet
-  try {
-    sqlite.exec('ALTER TABLE plugins ADD COLUMN tools_doc text');
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Migration: add replaces_native_features column if it doesn't exist yet
-  try {
-    sqlite.exec('ALTER TABLE plugins ADD COLUMN replaces_native_features text');
-  } catch {
-    // Column already exists — ignore
-  }
-
-  // Migration: add generated_env_vars column if it doesn't exist yet
-  try {
-    sqlite.exec('ALTER TABLE plugins ADD COLUMN generated_env_vars text');
-  } catch {
-    // Column already exists — ignore
-  }
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS agent_plugins (

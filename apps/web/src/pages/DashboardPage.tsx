@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pause, Play, Plus, Trash2, Upload, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Pause, Play, Plus, Tag, Trash2, Upload, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
@@ -16,6 +16,7 @@ interface Agent {
   packPath: string;
   containerId: string | null;
   token: string;
+  tags: string[];
   createdAt: string;
 }
 
@@ -133,6 +134,39 @@ export function DashboardPage() {
     onSettled: () => overlay.hide(),
   });
 
+  const updateTagsMutation = useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: string[] }) => api.updateAgent(id, { tags }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : t('dashboard.error'));
+    },
+  });
+
+  // Per-agent tag input state
+  const [addingTagFor, setAddingTagFor] = useState<string | null>(null);
+  const [tagInput, setTagInput] = useState('');
+  const tagInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (addingTagFor) tagInputRef.current?.focus();
+  }, [addingTagFor]);
+
+  const handleAddTag = (agent: Agent) => {
+    const value = tagInput.trim().toLowerCase();
+    if (!value || agent.tags.includes(value)) {
+      setAddingTagFor(null);
+      setTagInput('');
+      return;
+    }
+    updateTagsMutation.mutate({ id: agent.id, tags: [...agent.tags, value] });
+    setAddingTagFor(null);
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (agent: Agent, tag: string) => {
+    updateTagsMutation.mutate({ id: agent.id, tags: agent.tags.filter((t) => t !== tag) });
+  };
+
   const handleDeploy = () => {
     if (!agentName.trim()) {
       toast.error(t('dashboard.fillAllFields'));
@@ -155,7 +189,7 @@ export function DashboardPage() {
     }
   };
 
-  const agents: Agent[] = data?.agents || [];
+  const agents: Agent[] = (data?.agents || []).map((a) => ({ ...a, tags: a.tags ?? [] }));
 
   if (isLoading) {
     return (
@@ -246,6 +280,49 @@ export function DashboardPage() {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+
+              {/* Tags */}
+              <div className="flex flex-wrap items-center gap-1 mt-3">
+                {agent.tags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleRemoveTag(agent, tag)}
+                    className="group flex items-center gap-1 px-2 py-0.5 text-xs bg-neutral-100 text-neutral-600 rounded-full hover:bg-red-50 hover:text-red-600 transition-colors"
+                  >
+                    <Tag className="w-2.5 h-2.5" />
+                    {tag}
+                    <X className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))}
+                {addingTagFor === agent.id ? (
+                  <input
+                    ref={tagInputRef}
+                    type="text"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddTag(agent);
+                      if (e.key === 'Escape') {
+                        setAddingTagFor(null);
+                        setTagInput('');
+                      }
+                    }}
+                    onBlur={() => handleAddTag(agent)}
+                    placeholder={t('dashboard.tagPlaceholder')}
+                    className="px-2 py-0.5 text-xs border border-neutral-300 rounded-full focus:outline-none focus:ring-1 focus:ring-neutral-400 w-24"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setAddingTagFor(agent.id)}
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs text-neutral-400 hover:text-neutral-600 rounded-full hover:bg-neutral-100 transition-colors"
+                    title={t('dashboard.addTag')}
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                )}
               </div>
 
               <Link

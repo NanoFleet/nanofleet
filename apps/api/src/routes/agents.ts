@@ -4,7 +4,11 @@ import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import { docker, ensureNanobotImage } from '@nanofleet/docker';
-import { AgentPackManifestSchema, CreateAgentPayloadSchema } from '@nanofleet/shared';
+import {
+  AgentPackManifestSchema,
+  CreateAgentPayloadSchema,
+  UpdateAgentPayloadSchema,
+} from '@nanofleet/shared';
 import { db } from '../db';
 import { agentPlugins, agents, apiKeys, messages, plugins } from '../db/schema';
 import { sendToAgent } from '../lib/agent-bus';
@@ -38,7 +42,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
     return c.json({ error: 'Validation Error', details: parsed.error.issues }, 400);
   }
 
-  const { name, packPath, sessionVars } = parsed.data;
+  const { name, packPath, sessionVars, tags } = parsed.data;
 
   const packFullPath = resolve(PACKS_DIR, packPath);
 
@@ -122,6 +126,19 @@ agentRoutes.post('/', requireAuth, async (c) => {
 
   providerKeys[providerName] = envVars[providerKeyName] || '';
 
+  // Read Brave Search key if the pack requests web search
+  let braveApiKey: string | undefined;
+  if (manifest.webSearch) {
+    const [braveRecord] = await db
+      .select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, 'brave')))
+      .limit(1);
+    if (braveRecord) {
+      braveApiKey = decrypt(braveRecord.encryptedValue);
+    }
+  }
+
   // Auto-link all running plugins to this new agent
   const runningPlugins = await db.select().from(plugins).where(eq(plugins.status, 'running'));
 
@@ -149,6 +166,8 @@ agentRoutes.post('/', requireAuth, async (c) => {
     providerKeys,
     packPath: packFullPath,
     mcpServers,
+    webSearch: manifest.webSearch && !!braveApiKey,
+    braveApiKey,
   });
 
   const container = await docker.createContainer({
@@ -179,6 +198,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
     packPath: packFullPath,
     containerId,
     token: internalToken,
+    tags: JSON.stringify(tags ?? []),
   });
 
   await container.start();
@@ -203,10 +223,21 @@ agentRoutes.post('/', requireAuth, async (c) => {
   );
 });
 
+function parseTags(raw: string | null): string[] {
+  try {
+    const parsed = JSON.parse(raw ?? '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 agentRoutes.get('/', requireAuth, async (c) => {
   const allAgents = await db.select().from(agents);
 
-  return c.json({ agents: allAgents });
+  return c.json({
+    agents: allAgents.map((a) => ({ ...a, tags: parseTags(a.tags) })),
+  });
 });
 
 agentRoutes.get('/:id', requireAuth, async (c) => {
@@ -218,7 +249,27 @@ agentRoutes.get('/:id', requireAuth, async (c) => {
     return c.json({ error: 'Agent not found' }, 404);
   }
 
-  return c.json({ agent });
+  return c.json({ agent: { ...agent, tags: parseTags(agent.tags) } });
+});
+
+agentRoutes.patch('/:id', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) return c.json({ error: 'Agent not found' }, 404);
+
+  const body = await c.req.json();
+  const parsed = UpdateAgentPayloadSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'Validation Error', details: parsed.error.issues }, 400);
+  }
+
+  await db
+    .update(agents)
+    .set({ tags: JSON.stringify(parsed.data.tags) })
+    .where(eq(agents.id, agentId));
+
+  return c.json({ success: true });
 });
 
 agentRoutes.post('/:id/pause', requireAuth, async (c) => {

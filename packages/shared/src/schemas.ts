@@ -37,6 +37,7 @@ export const AgentSchema = z.object({
   packPath: z.string(),
   containerId: z.string().nullable(),
   token: z.string(),
+  tags: z.array(z.string()).optional().default([]),
   createdAt: z.string(),
 });
 
@@ -47,9 +48,16 @@ export const CreateAgentPayloadSchema = z.object({
   packPath: z.string().min(1),
   model: z.string().optional(),
   sessionVars: z.record(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
 });
 
 export type CreateAgentPayload = z.infer<typeof CreateAgentPayloadSchema>;
+
+export const UpdateAgentPayloadSchema = z.object({
+  tags: z.array(z.string()),
+});
+
+export type UpdateAgentPayload = z.infer<typeof UpdateAgentPayloadSchema>;
 
 export const AgentPackManifestSchema = z.object({
   name: z.string(),
@@ -57,6 +65,7 @@ export const AgentPackManifestSchema = z.object({
   author: z.string().optional(),
   model: z.string(),
   requiredEnvVars: z.array(z.string()).optional(),
+  webSearch: z.boolean().optional(),
 });
 
 export type AgentPackManifest = z.infer<typeof AgentPackManifestSchema>;
