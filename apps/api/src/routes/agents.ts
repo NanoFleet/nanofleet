@@ -122,6 +122,19 @@ agentRoutes.post('/', requireAuth, async (c) => {
 
   providerKeys[providerName] = envVars[providerKeyName] || '';
 
+  // Read Brave Search key if the pack requests web search
+  let braveApiKey: string | undefined;
+  if (manifest.webSearch) {
+    const [braveRecord] = await db
+      .select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, 'brave')))
+      .limit(1);
+    if (braveRecord) {
+      braveApiKey = decrypt(braveRecord.encryptedValue);
+    }
+  }
+
   // Auto-link all running plugins to this new agent
   const runningPlugins = await db.select().from(plugins).where(eq(plugins.status, 'running'));
 
@@ -149,6 +162,8 @@ agentRoutes.post('/', requireAuth, async (c) => {
     providerKeys,
     packPath: packFullPath,
     mcpServers,
+    webSearch: manifest.webSearch && !!braveApiKey,
+    braveApiKey,
   });
 
   const container = await docker.createContainer({

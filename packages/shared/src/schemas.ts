@@ -57,6 +57,7 @@ export const AgentPackManifestSchema = z.object({
   author: z.string().optional(),
   model: z.string(),
   requiredEnvVars: z.array(z.string()).optional(),
+  webSearch: z.boolean().optional(),
 });
 
 export type AgentPackManifest = z.infer<typeof AgentPackManifestSchema>;

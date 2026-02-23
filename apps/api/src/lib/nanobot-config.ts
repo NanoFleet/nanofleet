@@ -41,6 +41,8 @@ export interface GenerateAgentConfigParams {
   providerKeys: Record<string, string>;
   packPath: string;
   mcpServers?: McpServerEntry[];
+  webSearch?: boolean;
+  braveApiKey?: string;
 }
 
 export async function generateAgentConfig({
@@ -49,6 +51,8 @@ export async function generateAgentConfig({
   providerKeys,
   packPath,
   mcpServers = [],
+  webSearch = false,
+  braveApiKey,
 }: GenerateAgentConfigParams): Promise<string> {
   const providerParts = model.split('/');
   const providerName = providerParts[0]?.toLowerCase() || '';
@@ -105,6 +109,16 @@ export async function generateAgentConfig({
     tools: {
       restrictToWorkspace: true,
       mcpServers: mcpServersConfig,
+      ...(webSearch && braveApiKey
+        ? {
+            web: {
+              search: {
+                apiKey: braveApiKey,
+                maxResults: 5,
+              },
+            },
+          }
+        : {}),
     },
   };
 

@@ -60,6 +60,19 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
     providerKeys[providerName] = decrypt(keyRecord.encryptedValue);
   }
 
+  // Read Brave Search key if the pack requests web search
+  let braveApiKey: string | undefined;
+  if (manifest.webSearch) {
+    const [braveRecord] = await db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.keyName, 'brave'))
+      .limit(1);
+    if (braveRecord) {
+      braveApiKey = decrypt(braveRecord.encryptedValue);
+    }
+  }
+
   // Regenerate config.json (does NOT overwrite SOUL.md/TOOLS.md if already present)
   await generateAgentConfig({
     agentId,
@@ -67,6 +80,8 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
     providerKeys,
     packPath: agent.packPath,
     mcpServers,
+    webSearch: manifest.webSearch && !!braveApiKey,
+    braveApiKey,
   });
 
   // Stop + start the container to pick up new config
