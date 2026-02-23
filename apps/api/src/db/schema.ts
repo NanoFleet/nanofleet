@@ -24,6 +24,7 @@ export const agents = sqliteTable('agents', {
   packPath: text('pack_path').notNull(),
   containerId: text('container_id'),
   token: text('token').notNull(),
+  tags: text('tags'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .$defaultFn(() => new Date()),

@@ -81,6 +81,13 @@ export function initDb() {
     // Column already exists — ignore
   }
 
+  // Migration: add tags column if it doesn't exist yet
+  try {
+    sqlite.exec('ALTER TABLE agents ADD COLUMN tags text');
+  } catch {
+    // Column already exists — ignore
+  }
+
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS agent_plugins (
       agent_id text NOT NULL,

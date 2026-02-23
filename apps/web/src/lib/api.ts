@@ -96,6 +96,18 @@ export const api = {
     return response.json();
   },
 
+  patch: async <T>(path: string, body?: unknown): Promise<T> => {
+    const response = await fetchWithAuth(`${API_BASE_URL}${path}`, {
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || 'Request failed');
+    }
+    return response.json();
+  },
+
   login: async (
     username: string,
     password: string,
@@ -163,6 +175,7 @@ export const api = {
       packPath: string;
       containerId: string | null;
       token: string;
+      tags: string[];
       createdAt: string;
     }>;
   }> => {
@@ -179,10 +192,15 @@ export const api = {
       packPath: string;
       containerId: string | null;
       token: string;
+      tags: string[];
       createdAt: string;
     };
   }> => {
     return api.get(`/api/agents/${id}`);
+  },
+
+  updateAgent: async (id: string, data: { tags: string[] }): Promise<{ success: boolean }> => {
+    return api.patch(`/api/agents/${id}`, data);
   },
 
   createAgent: async (data: {
