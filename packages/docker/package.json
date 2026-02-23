@@ -1,0 +1,13 @@
+{
+  "name": "@nanofleet/docker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.ts",
+  "dependencies": {
+    "dockerode": "^4.0.9"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^4.0.1"
+  }
+}

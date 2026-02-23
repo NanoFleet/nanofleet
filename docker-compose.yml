@@ -1,0 +1,51 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: nanofleet-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - apps/api/.env
+    environment:
+      # Override/add variables not in .env
+      # Internal URL used by agent/plugin containers to reach this API (container-to-container DNS)
+      NANO_API_INTERNAL_URL: "http://nanofleet-api:3000"
+      # Allow requests originating from the browser via the web container's exposed port
+      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS:-http://localhost:8080}"
+      # Real host path passed to Docker daemon for agent/plugin bind mounts.
+      # Must be the absolute path on the HOST machine (not inside the container).
+      NANOFLEET_HOST_HOME: "${NANOFLEET_HOST_HOME:-$HOME/.nanofleet}"
+    volumes:
+      # Docker socket — required to manage agent/plugin containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persist the SQLite database
+      - nanofleet-db:/app/apps/api/data
+      # Host paths for agent instances, workspace, shared files
+      # These must match what agent containers mount (host paths are passed via bind mounts)
+      - ${NANOFLEET_HOST_HOME:-~/.nanofleet}:/root/.nanofleet
+    networks:
+      - nanofleet-net
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: nanofleet-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      - api
+    networks:
+      - nanofleet-net
+
+networks:
+  nanofleet-net:
+    name: nanofleet-net
+    driver: bridge
+
+volumes:
+  nanofleet-db:

@@ -1,0 +1,24 @@
+{
+  "name": "nanofleet",
+  "private": true,
+  "packageManager": "bun@1.3.6",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "format": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/bun": "1.3.9",
+    "turbo": "^2.8.10",
+    "typescript": "^5.9.3"
+  },
+  "trustedDependencies": [
+    "@biomejs/biome"
+  ]
+}

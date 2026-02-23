@@ -1,0 +1,28 @@
+{
+  "name": "@nanofleet/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "build": "tsc",
+    "start": "bun src/index.ts",
+    "lint": "biome check src"
+  },
+  "dependencies": {
+    "@nanofleet/docker": "workspace:*",
+    "@nanofleet/shared": "workspace:*",
+    "adm-zip": "^0.5.16",
+    "dockerode": "^4.0.9",
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.7.11",
+    "jose": "^6.0.8",
+    "otplib": "^12.0.1",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.9",
+    "@types/dockerode": "^4.0.1",
+    "@types/qrcode-terminal": "^0.12.2"
+  }
+}

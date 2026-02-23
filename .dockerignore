@@ -1,0 +1,7 @@
+**/node_modules
+**/.turbo
+**/dist
+**/*.db
+**/*.db-shm
+**/*.db-wal
+apps/api/.env
