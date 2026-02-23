@@ -2,6 +2,9 @@
 
 A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker containers, interact with them via a web dashboard, and extend them with plugins.
 
+> [!WARNING]  
+> The project is currently in beta and is therefore not ready for production use.
+
 <table>
   <tr>
     <td><img width="2576" height="1750" alt="Fleet Dashboard" src="https://github.com/user-attachments/assets/165078e2-322f-44c3-9b62-3fb75328ba04" /></td>
