@@ -393,10 +393,10 @@ agentRoutes.get('/:id/workspace', requireAuth, async (c) => {
 
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   try {
-    const entries = await readdir(workspaceDir);
+    const entries = await readdir(workspaceDir, { recursive: true });
     const files = await Promise.all(
       entries.map(async (name) => {
-        const fileStat = await stat(resolve(workspaceDir, name));
+        const fileStat = await stat(resolve(workspaceDir, name as string));
         return fileStat.isFile() ? { name, size: fileStat.size } : null;
       })
     );
@@ -408,7 +408,7 @@ agentRoutes.get('/:id/workspace', requireAuth, async (c) => {
 
 agentRoutes.get('/:id/workspace/:filename', requireAuth, async (c) => {
   const agentId = c.req.param('id');
-  const filename = basename(c.req.param('filename'));
+  const filename = c.req.param('filename');
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   if (!agent) {
@@ -432,7 +432,7 @@ agentRoutes.get('/:id/workspace/:filename', requireAuth, async (c) => {
 
 agentRoutes.put('/:id/workspace/:filename', requireAuth, async (c) => {
   const agentId = c.req.param('id');
-  const filename = basename(c.req.param('filename'));
+  const filename = c.req.param('filename');
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   if (!agent) {
@@ -442,7 +442,7 @@ agentRoutes.put('/:id/workspace/:filename', requireAuth, async (c) => {
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   const filePath = resolve(workspaceDir, filename);
 
-  if (!filePath.startsWith(workspaceDir)) {
+  if (!filePath.startsWith(workspaceDir + '/')) {
     return c.json({ error: 'Invalid path' }, 400);
   }
 
