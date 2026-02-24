@@ -35,7 +35,13 @@ function buildTree(files: { name: string; size: number }[]): TreeNode[] {
 
       let node = current.find((n) => n.name === part);
       if (!node) {
-        const newNode: TreeNode = { name: part as string, path, type: isFile ? 'file' : 'dir', children: [], size: isFile ? file.size : undefined };
+        const newNode: TreeNode = {
+          name: part as string,
+          path,
+          type: isFile ? 'file' : 'dir',
+          children: [],
+          size: isFile ? file.size : undefined,
+        };
         current.push(newNode);
         node = newNode;
       }
@@ -72,7 +78,11 @@ function TreeNodeItem({
           className="flex items-center gap-1.5 w-full px-2 py-1 text-sm text-neutral-500 hover:text-neutral-700 rounded hover:bg-neutral-100 text-left"
           style={{ paddingLeft: `${8 + depth * 16}px` }}
         >
-          {open ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />}
+          {open ? (
+            <ChevronDown className="w-3 h-3 shrink-0" />
+          ) : (
+            <ChevronRight className="w-3 h-3 shrink-0" />
+          )}
           <Folder className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{node.name}</span>
         </button>

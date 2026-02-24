@@ -67,7 +67,9 @@ agentRoutes.post('/', requireAuth, async (c) => {
       const keyRecords = await db
         .select()
         .from(apiKeys)
-        .where(and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${varName})`))
+        .where(
+          and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${varName})`)
+        )
         .limit(1);
 
       const keyRecord = keyRecords[0];
@@ -89,7 +91,12 @@ agentRoutes.post('/', requireAuth, async (c) => {
     const keyRecords = await db
       .select()
       .from(apiKeys)
-      .where(and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${providerName})`))
+      .where(
+        and(
+          eq(apiKeys.userId, user.userId),
+          sql`lower(${apiKeys.keyName}) = lower(${providerName})`
+        )
+      )
       .limit(1);
 
     const keyRecord = keyRecords[0];
@@ -442,7 +449,7 @@ agentRoutes.put('/:id/workspace/:filename', requireAuth, async (c) => {
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   const filePath = resolve(workspaceDir, filename);
 
-  if (!filePath.startsWith(workspaceDir + '/')) {
+  if (!filePath.startsWith(`${workspaceDir}/`)) {
     return c.json({ error: 'Invalid path' }, 400);
   }
 
