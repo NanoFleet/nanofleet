@@ -19,17 +19,6 @@ A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker cont
 - Plugin system — extend agents with MCP tools and custom UIs
 - Agent packs — portable zip files defining an agent's behavior, tools, and rules
 
-## Stack
-
-| Layer | Technology |
-|-------|-----------|
-| API | Bun + Hono |
-| Web | Bun + React + Vite |
-| Database | SQLite (Drizzle ORM) |
-| Containers | Docker SDK |
-| Auth | JWT (HS256) + TOTP |
-| Agent engine | [nanobot](https://github.com/HKUDS/nanobot) |
-
 ## Getting started
 
 ### Docker (recommended)
