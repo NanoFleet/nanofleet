@@ -1,4 +1,4 @@
-import { access, copyFile, mkdir, writeFile } from 'node:fs/promises';
+import { access, copyFile, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
@@ -147,13 +147,37 @@ export async function generateAgentConfig({
     }
   }
 
-  // TOOLS.md is always regenerated from active plugin docs — never manually edited
+  // Copy skills/ from pack to workspace (only if not already present)
+  const skillsSrc = resolve(packPath, 'skills');
+  const skillsDst = resolve(internalWorkspaceDir, 'skills');
+  try {
+    await access(skillsDst);
+    // Already exists — don't overwrite
+  } catch {
+    try {
+      await cp(skillsSrc, skillsDst, { recursive: true });
+    } catch {
+      // No skills directory in pack — that's fine
+    }
+  }
+
+  // TOOLS.md is regenerated from active plugin docs + optional pack-level TOOLS.md
   const toolsPath = resolve(internalWorkspaceDir, 'TOOLS.md');
   const toolsSections = mcpServers.filter((s) => s.toolsDoc).map((s) => s.toolsDoc as string);
 
+  // Append pack-level TOOLS.md if present (agent-specific tool instructions)
+  let packToolsDoc: string | null = null;
+  try {
+    packToolsDoc = await readFile(resolve(packPath, 'TOOLS.md'), 'utf-8');
+  } catch {
+    // No TOOLS.md in pack — that's fine
+  }
+
+  const allSections = packToolsDoc ? [...toolsSections, packToolsDoc] : toolsSections;
+
   const toolsContent =
-    toolsSections.length > 0
-      ? `# Available Tools\n\n${toolsSections.join('\n\n---\n\n')}`
+    allSections.length > 0
+      ? `# Available Tools\n\n${allSections.join('\n\n---\n\n')}`
       : '# Available Tools\n\nNo plugins are currently installed. You have no external tools available.';
 
   await writeFile(toolsPath, toolsContent, 'utf-8');
