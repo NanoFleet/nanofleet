@@ -1,6 +1,6 @@
 import { readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import { docker, ensureNanobotImage } from '@nanofleet/docker';
@@ -67,15 +67,8 @@ agentRoutes.post('/', requireAuth, async (c) => {
       const keyRecords = await db
         .select()
         .from(apiKeys)
-        .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, varName.toLowerCase())))
+        .where(and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${varName})`))
         .limit(1);
-
-      if (keyRecords.length === 0) {
-        return c.json(
-          { error: `Missing API key '${varName}'. Please configure it in Settings.` },
-          400
-        );
-      }
 
       const keyRecord = keyRecords[0];
       if (!keyRecord) {
@@ -96,15 +89,8 @@ agentRoutes.post('/', requireAuth, async (c) => {
     const keyRecords = await db
       .select()
       .from(apiKeys)
-      .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, providerName)))
+      .where(and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${providerName})`))
       .limit(1);
-
-    if (keyRecords.length === 0) {
-      return c.json(
-        { error: `Missing API key '${providerName}'. Please configure it in Settings.` },
-        400
-      );
-    }
 
     const keyRecord = keyRecords[0];
     if (!keyRecord) {
