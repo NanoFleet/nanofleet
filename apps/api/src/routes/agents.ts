@@ -1,6 +1,6 @@
 import { readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
 import { docker, ensureNanobotImage } from '@nanofleet/docker';
@@ -67,15 +67,10 @@ agentRoutes.post('/', requireAuth, async (c) => {
       const keyRecords = await db
         .select()
         .from(apiKeys)
-        .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, varName.toLowerCase())))
+        .where(
+          and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${varName})`)
+        )
         .limit(1);
-
-      if (keyRecords.length === 0) {
-        return c.json(
-          { error: `Missing API key '${varName}'. Please configure it in Settings.` },
-          400
-        );
-      }
 
       const keyRecord = keyRecords[0];
       if (!keyRecord) {
@@ -96,15 +91,13 @@ agentRoutes.post('/', requireAuth, async (c) => {
     const keyRecords = await db
       .select()
       .from(apiKeys)
-      .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, providerName)))
+      .where(
+        and(
+          eq(apiKeys.userId, user.userId),
+          sql`lower(${apiKeys.keyName}) = lower(${providerName})`
+        )
+      )
       .limit(1);
-
-    if (keyRecords.length === 0) {
-      return c.json(
-        { error: `Missing API key '${providerName}'. Please configure it in Settings.` },
-        400
-      );
-    }
 
     const keyRecord = keyRecords[0];
     if (!keyRecord) {
@@ -407,10 +400,10 @@ agentRoutes.get('/:id/workspace', requireAuth, async (c) => {
 
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   try {
-    const entries = await readdir(workspaceDir);
+    const entries = await readdir(workspaceDir, { recursive: true });
     const files = await Promise.all(
       entries.map(async (name) => {
-        const fileStat = await stat(resolve(workspaceDir, name));
+        const fileStat = await stat(resolve(workspaceDir, name as string));
         return fileStat.isFile() ? { name, size: fileStat.size } : null;
       })
     );
@@ -422,7 +415,7 @@ agentRoutes.get('/:id/workspace', requireAuth, async (c) => {
 
 agentRoutes.get('/:id/workspace/:filename', requireAuth, async (c) => {
   const agentId = c.req.param('id');
-  const filename = basename(c.req.param('filename'));
+  const filename = c.req.param('filename');
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   if (!agent) {
@@ -446,7 +439,7 @@ agentRoutes.get('/:id/workspace/:filename', requireAuth, async (c) => {
 
 agentRoutes.put('/:id/workspace/:filename', requireAuth, async (c) => {
   const agentId = c.req.param('id');
-  const filename = basename(c.req.param('filename'));
+  const filename = c.req.param('filename');
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   if (!agent) {
@@ -456,7 +449,7 @@ agentRoutes.put('/:id/workspace/:filename', requireAuth, async (c) => {
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   const filePath = resolve(workspaceDir, filename);
 
-  if (!filePath.startsWith(workspaceDir)) {
+  if (!filePath.startsWith(`${workspaceDir}/`)) {
     return c.json({ error: 'Invalid path' }, 400);
   }
 
