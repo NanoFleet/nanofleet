@@ -415,7 +415,10 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
   const containerInfo = await container.inspect();
   const containerId = containerInfo.Id;
 
-  await db.update(agents).set({ containerId, nanobotVersion, status: 'starting' }).where(eq(agents.id, agentId));
+  await db
+    .update(agents)
+    .set({ containerId, nanobotVersion, status: 'starting' })
+    .where(eq(agents.id, agentId));
 
   await container.start();
 
