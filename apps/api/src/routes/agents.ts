@@ -619,7 +619,7 @@ agentRoutes.post('/:id/workspace', requireAuth, async (c) => {
 
 agentRoutes.delete('/:id/workspace/:filename', requireAuth, async (c) => {
   const agentId = c.req.param('id');
-  const filename = basename(c.req.param('filename'));
+  const filename = c.req.param('filename');
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   if (!agent) {
