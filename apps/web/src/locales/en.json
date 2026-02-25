@@ -77,6 +77,8 @@
     "deploy": "Deploy",
     "agentName": "Agent Name",
     "agentNamePlaceholder": "My Agent",
+    "modelOverride": "Model (optional)",
+    "modelOverridePlaceholder": "Defaults to pack's model",
     "selectPack": "Or select an existing pack",
     "selectPackOption": "Choose a pack...",
     "or": "or",

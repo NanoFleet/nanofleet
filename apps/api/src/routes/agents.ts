@@ -43,7 +43,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
     return c.json({ error: 'Validation Error', details: parsed.error.issues }, 400);
   }
 
-  const { name, packPath, sessionVars, tags } = parsed.data;
+  const { name, packPath, sessionVars, tags, model: modelOverride } = parsed.data;
 
   const packFullPath = resolve(PACKS_DIR, packPath);
 
@@ -55,7 +55,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
   const manifestPath = resolve(packFullPath, 'manifest.json');
   const manifestContent = await readFile(manifestPath, 'utf-8');
   const manifest = AgentPackManifestSchema.parse(JSON.parse(manifestContent));
-  const model = manifest.model;
+  const model = modelOverride ?? manifest.model;
 
   const requiredEnvVars = await getRequiredEnvVars(packFullPath);
 
