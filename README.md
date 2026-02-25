@@ -47,7 +47,6 @@ The `docker-compose.yml` includes a Traefik service that automatically provision
 ```bash
 DOMAIN=your.domain.com \
 ACME_EMAIL=you@email.com \
-ALLOWED_ORIGINS=https://your.domain.com \
   docker compose --profile prod up --build -d
 ```
 
