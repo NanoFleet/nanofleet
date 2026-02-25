@@ -37,7 +37,7 @@ async function buildNanobotImage(): Promise<void> {
   });
 }
 
-async function getNanobotVersion(): Promise<string | null> {
+export async function getNanobotVersion(): Promise<string | null> {
   try {
     const image = docker.getImage(IMAGE_NAME);
     const info = await image.inspect();

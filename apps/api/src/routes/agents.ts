@@ -3,7 +3,7 @@ import { basename, resolve } from 'node:path';
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
-import { docker, ensureNanobotImage } from '@nanofleet/docker';
+import { docker, ensureNanobotImage, getNanobotVersion } from '@nanofleet/docker';
 import {
   AgentPackManifestSchema,
   CreateAgentPayloadSchema,
@@ -222,9 +222,13 @@ function parseTags(raw: string | null): string[] {
 }
 
 agentRoutes.get('/', requireAuth, async (c) => {
-  const allAgents = await db.select().from(agents);
+  const [allAgents, nanobotImageVersion] = await Promise.all([
+    db.select().from(agents),
+    getNanobotVersion(),
+  ]);
 
   return c.json({
+    nanobotImageVersion,
     agents: allAgents.map((a) => ({ ...a, tags: parseTags(a.tags) })),
   });
 });

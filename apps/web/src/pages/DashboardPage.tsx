@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pause, Play, Plus, Tag, Trash2, Upload, X } from 'lucide-react';
+import { ArrowUp, Pause, Play, Plus, Tag, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -20,6 +20,22 @@ interface Agent {
   token: string;
   tags: string[];
   createdAt: string;
+}
+
+function isOlderVersion(a: string, b: string): boolean {
+  const parse = (v: string) => {
+    const [base = '', post] = v.split('.post');
+    const parts = base.split('.').map(Number);
+    parts.push(post !== undefined ? Number(post) : -1);
+    return parts;
+  };
+  const pa = parse(a);
+  const pb = parse(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff < 0;
+  }
+  return false;
 }
 
 const statusColors: Record<string, string> = {
@@ -212,6 +228,7 @@ export function DashboardPage() {
     }
   };
 
+  const nanobotImageVersion = data?.nanobotImageVersion ?? null;
   const agents: Agent[] = (data?.agents || []).map((a) => ({ ...a, tags: a.tags ?? [] }));
 
   if (isLoading) {
@@ -308,6 +325,17 @@ export function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  {agent.nanobotVersion &&
+                    nanobotImageVersion &&
+                    isOlderVersion(agent.nanobotVersion, nanobotImageVersion) && (
+                      <button
+                        type="button"
+                        className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded"
+                        title={`Update available: ${nanobotImageVersion}`}
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                    )}
                   {agent.status === 'running' ? (
                     <button
                       type="button"

@@ -168,12 +168,14 @@ export const api = {
   },
 
   getAgents: async (): Promise<{
+    nanobotImageVersion: string | null;
     agents: Array<{
       id: string;
       name: string;
       status: string;
       packPath: string;
       model: string | null;
+      nanobotVersion?: string | null;
       containerId: string | null;
       token: string;
       tags: string[];
