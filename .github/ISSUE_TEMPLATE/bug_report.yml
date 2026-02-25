@@ -1,0 +1,45 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: checkboxes
+    id: environment
+    attributes:
+      label: Environment
+      description: Where are you running NanoFleet?
+      options:
+        - label: Local (localhost)
+        - label: Remote — HTTP via SSH tunnel
+        - label: Remote — HTTPS (Traefik + Let's Encrypt)
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to...
+        2. Click on...
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste any relevant logs from `docker compose logs` or the browser console.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: NanoFleet version / commit
+      placeholder: e.g. main@abc1234
