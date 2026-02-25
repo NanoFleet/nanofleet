@@ -21,7 +21,11 @@ A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker cont
 
 ## Getting started
 
-### Docker (recommended)
+> [!NOTE]
+> Some browser APIs (e.g. `crypto.randomUUID`) require a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) (HTTPS or `localhost`). Accessing the app over a plain HTTP public IP will cause errors. Use HTTPS (see below) or an SSH tunnel.
+
+<details>
+<summary><strong>Local</strong></summary>
 
 ```bash
 cp apps/api/.env.example apps/api/.env
@@ -34,8 +38,7 @@ docker compose up --build
 
 On first boot, the API prints a temporary password and a QR code in the terminal. Scan it with an authenticator app to set up 2FA.
 
-> [!NOTE]
-> Some browser APIs (e.g. `crypto.randomUUID`) require a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) (HTTPS or `localhost`). Accessing the app over a plain HTTP public IP will cause errors. Use HTTPS (see below) or an SSH tunnel.
+</details>
 
 <details>
 <summary><strong>Production with HTTPS (Traefik + Let's Encrypt)</strong></summary>
@@ -55,7 +58,7 @@ ACME_EMAIL=you@email.com \
 </details>
 
 <details>
-<summary><strong>Without a domain (SSH tunnel)</strong></summary>
+<summary><strong>Production without a domain (SSH tunnel)</strong></summary>
 
 If you don't have a domain or want to keep the server private, you can access NanoFleet securely via an SSH tunnel — no HTTPS configuration needed:
 
