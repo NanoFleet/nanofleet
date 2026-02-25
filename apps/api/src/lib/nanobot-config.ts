@@ -35,10 +35,55 @@ export interface McpServerEntry {
   toolsDoc?: string | null;
 }
 
+// Providers that can route requests to any model vendor.
+// When no direct provider key is found, these are checked as fallback.
+export const ROUTING_PROVIDERS = ['openrouter', 'vllm'] as const;
+
+export interface ResolveProviderResult {
+  providerName: string;
+  apiKey: string;
+}
+
+/**
+ * Resolves which provider and API key to use for a given model.
+ *
+ * Resolution order:
+ * 1. Direct match: key named after the model's vendor prefix (e.g. "anthropic" for "anthropic/claude-...")
+ * 2. Routing provider fallback: first matching key from ROUTING_PROVIDERS (e.g. "openrouter")
+ *
+ * The lookupKey function receives a provider name and returns the decrypted API key or null.
+ */
+export async function resolveProvider(
+  model: string,
+  lookupKey: (name: string) => Promise<string | null>
+): Promise<ResolveProviderResult> {
+  const vendorName = (model.split('/')[0] || '').toLowerCase();
+
+  // 1. Try direct vendor key
+  const directKey = await lookupKey(vendorName);
+  if (directKey) {
+    return { providerName: vendorName, apiKey: directKey };
+  }
+
+  // 2. Try routing providers in order
+  for (const routingProvider of ROUTING_PROVIDERS) {
+    const routingKey = await lookupKey(routingProvider);
+    if (routingKey) {
+      return { providerName: routingProvider, apiKey: routingKey };
+    }
+  }
+
+  throw new Error(
+    `Missing API key for model '${model}'. Add a '${vendorName}' key or a routing provider key (${ROUTING_PROVIDERS.join(', ')}) in Settings.`
+  );
+}
+
 export interface GenerateAgentConfigParams {
   agentId: string;
   model: string;
   providerKeys: Record<string, string>;
+  /** Resolved provider name (may differ from model vendor when routing via openrouter/vllm). */
+  resolvedProviderName?: string;
   packPath: string;
   mcpServers?: McpServerEntry[];
   webSearch?: boolean;
@@ -49,13 +94,13 @@ export async function generateAgentConfig({
   agentId,
   model,
   providerKeys,
+  resolvedProviderName,
   packPath,
   mcpServers = [],
   webSearch = false,
   braveApiKey,
 }: GenerateAgentConfigParams): Promise<string> {
-  const providerParts = model.split('/');
-  const providerName = providerParts[0]?.toLowerCase() || '';
+  const providerName = resolvedProviderName ?? (model.split('/')[0]?.toLowerCase() || '');
   const apiKey = providerKeys[providerName];
 
   if (!apiKey) {
