@@ -376,6 +376,60 @@ agentRoutes.post('/:id/resume', requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
+agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) return c.json({ error: 'Agent not found' }, 404);
+
+  if (agent.containerId) {
+    try {
+      const old = docker.getContainer(agent.containerId);
+      await old.stop();
+      await old.remove();
+    } catch (error) {
+      console.error('[Upgrade] Failed to stop/remove old container:', error);
+    }
+  }
+
+  const nanobotVersion = await getNanobotVersion();
+
+  const container = await docker.createContainer({
+    Image: 'nanofleet-nanobot:latest',
+    name: `nanofleet-agent-${agentId}`,
+    Env: [
+      `NANO_INTERNAL_TOKEN=${agent.token}`,
+      `NANO_API_URL=${process.env.NANO_API_INTERNAL_URL ?? 'http://host.docker.internal:3000'}`,
+      `NANO_AGENT_ID=${agentId}`,
+    ],
+    HostConfig: {
+      Binds: [
+        `${agentWorkspaceHostPath(agentId)}:/workspace/${agentId}`,
+        `${SHARED_HOST_DIR}:/shared`,
+        `${INSTANCES_HOST_DIR}/${agentId}:/root/.nanobot`,
+      ],
+      NetworkMode: NETWORK_NAME,
+    },
+  });
+
+  const containerInfo = await container.inspect();
+  const containerId = containerInfo.Id;
+
+  await db.update(agents).set({ containerId, nanobotVersion, status: 'starting' }).where(eq(agents.id, agentId));
+
+  await container.start();
+
+  await db.update(agents).set({ status: 'running' }).where(eq(agents.id, agentId));
+  broadcastAgentStatus(agentId, 'running');
+
+  attachToContainerLogs(docker, containerId, agentId, {
+    onLog: (id, log) => broadcastToAgent(id, log),
+    onError: (id, error) => console.error(`[LogStream] Agent ${id} error:`, error.message),
+  });
+
+  return c.json({ success: true });
+});
+
 agentRoutes.delete('/:id', requireAuth, async (c) => {
   const agentId = c.req.param('id');
 

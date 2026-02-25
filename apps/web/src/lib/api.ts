@@ -226,6 +226,10 @@ export const api = {
     return api.post(`/api/agents/${id}/resume`);
   },
 
+  upgradeAgent: async (id: string): Promise<{ success: boolean }> => {
+    return api.post(`/api/agents/${id}/upgrade`);
+  },
+
   getAgentConfig: async (id: string, file: 'soul' | 'tools'): Promise<{ content: string }> => {
     return api.get(`/api/agents/${id}/config/${file}`);
   },

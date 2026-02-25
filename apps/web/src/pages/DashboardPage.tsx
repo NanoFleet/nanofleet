@@ -152,6 +152,19 @@ export function DashboardPage() {
     onSettled: () => overlay.hide(),
   });
 
+  const upgradeMutation = useMutation({
+    mutationFn: (id: string) => api.upgradeAgent(id),
+    onMutate: () => overlay.show(t('dashboard.upgrading')),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      toast.success(t('dashboard.agentUpgraded'));
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : t('dashboard.error'));
+    },
+    onSettled: () => overlay.hide(),
+  });
+
   const updateTagsMutation = useMutation({
     mutationFn: ({ id, tags }: { id: string; tags: string[] }) => api.updateAgent(id, { tags }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
@@ -330,6 +343,8 @@ export function DashboardPage() {
                     isOlderVersion(agent.nanobotVersion, nanobotImageVersion) && (
                       <button
                         type="button"
+                        onClick={() => upgradeMutation.mutate(agent.id)}
+                        disabled={upgradeMutation.isPending}
                         className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded"
                         title={`Update available: ${nanobotImageVersion}`}
                       >
