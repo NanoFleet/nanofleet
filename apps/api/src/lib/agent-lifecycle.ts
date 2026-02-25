@@ -9,7 +9,7 @@ import { agentPlugins, agents, apiKeys, plugins } from '../db/schema';
 import { pluginRegistry } from '../routes/plugins';
 import { decrypt } from './crypto';
 import { attachToContainerLogs } from './log-stream';
-import { type McpServerEntry, generateAgentConfig } from './nanobot-config';
+import { type McpServerEntry, generateAgentConfig, resolveProvider } from './nanobot-config';
 import { broadcastAgentStatus, broadcastToAgent } from './ws-manager';
 
 // ---------------------------------------------------------------------------
@@ -47,19 +47,13 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
   const manifest = AgentPackManifestSchema.parse(JSON.parse(manifestContent));
   const model = agent.model ?? manifest.model;
 
-  // Read provider key from DB
-  const modelParts = model.split('/');
-  const providerName = (modelParts[0] || '').toLowerCase();
-  const [keyRecord] = await db
-    .select()
-    .from(apiKeys)
-    .where(eq(apiKeys.keyName, providerName))
-    .limit(1);
+  // Resolve provider key with routing fallback (openrouter, vllm, etc.)
+  const { providerName, apiKey } = await resolveProvider(model, async (name) => {
+    const [keyRecord] = await db.select().from(apiKeys).where(eq(apiKeys.keyName, name)).limit(1);
+    return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+  });
 
-  const providerKeys: Record<string, string> = {};
-  if (keyRecord) {
-    providerKeys[providerName] = decrypt(keyRecord.encryptedValue);
-  }
+  const providerKeys: Record<string, string> = { [providerName]: apiKey };
 
   // Read Brave Search key if the pack requests web search
   let braveApiKey: string | undefined;
@@ -79,6 +73,7 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
     agentId,
     model,
     providerKeys,
+    resolvedProviderName: providerName,
     packPath: agent.packPath,
     mcpServers,
     webSearch: manifest.webSearch && !!braveApiKey,

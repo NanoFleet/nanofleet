@@ -22,6 +22,7 @@ import {
   agentWorkspaceHostPath,
   agentWorkspaceInternalPath,
   generateAgentConfig,
+  resolveProvider,
 } from '../lib/nanobot-config';
 import { PACKS_DIR, getRequiredEnvVars, validatePack } from '../lib/packs';
 import { broadcastAgentStatus, broadcastToAgent } from '../lib/ws-manager';
@@ -83,41 +84,33 @@ agentRoutes.post('/', requireAuth, async (c) => {
     }
   }
 
-  const modelParts = model.split('/');
-  const providerName = (modelParts[0] || '').toLowerCase();
-  const providerKeyVar = `${providerName.toUpperCase()}_API_KEY`;
-
-  if (!envVars[providerKeyVar]) {
-    const keyRecords = await db
-      .select()
-      .from(apiKeys)
-      .where(
-        and(
-          eq(apiKeys.userId, user.userId),
-          sql`lower(${apiKeys.keyName}) = lower(${providerName})`
+  let resolved: { providerName: string; apiKey: string };
+  try {
+    resolved = await resolveProvider(model, async (name) => {
+      // Check sessionVars first (e.g. ANTHROPIC_API_KEY), then vault
+      const varName = `${name.toUpperCase()}_API_KEY`;
+      if (envVars[varName]) return envVars[varName];
+      const keyRecords = await db
+        .select()
+        .from(apiKeys)
+        .where(
+          and(eq(apiKeys.userId, user.userId), sql`lower(${apiKeys.keyName}) = lower(${name})`)
         )
-      )
-      .limit(1);
-
-    const keyRecord = keyRecords[0];
-    if (!keyRecord) {
-      return c.json(
-        { error: `Missing API key '${providerName}'. Please configure it in Settings.` },
-        400
-      );
-    }
-    envVars[providerKeyVar] = decrypt(keyRecord.encryptedValue);
+        .limit(1);
+      const keyRecord = keyRecords[0];
+      return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+    });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : 'Missing API key' }, 400);
   }
+
+  const { providerName, apiKey } = resolved;
+  const providerKeys: Record<string, string> = { [providerName]: apiKey };
 
   await ensureNanobotImage();
 
   const agentId = crypto.randomUUID();
   const internalToken = crypto.randomUUID();
-
-  const providerKeyName = `${providerName.toUpperCase()}_API_KEY`;
-  const providerKeys: Record<string, string> = {};
-
-  providerKeys[providerName] = envVars[providerKeyName] || '';
 
   // Read Brave Search key if the pack requests web search
   let braveApiKey: string | undefined;
@@ -157,6 +150,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
     agentId,
     model,
     providerKeys,
+    resolvedProviderName: providerName,
     packPath: packFullPath,
     mcpServers,
     webSearch: manifest.webSearch && !!braveApiKey,
@@ -273,23 +267,24 @@ agentRoutes.patch('/:id', requireAuth, async (c) => {
   // If model changed, regenerate config.json so the new model is picked up on next restart
   if (parsed.data.model !== undefined) {
     const newModel = parsed.data.model;
-    const providerName = (newModel.split('/')[0] || '').toLowerCase();
 
-    const [keyRecord] = await db
-      .select()
-      .from(apiKeys)
-      .where(eq(apiKeys.keyName, providerName))
-      .limit(1);
-
-    if (!keyRecord) {
-      return c.json(
-        { error: `Missing API key '${providerName}'. Please configure it in Settings.` },
-        400
-      );
+    let resolvedPatch: { providerName: string; apiKey: string };
+    try {
+      resolvedPatch = await resolveProvider(newModel, async (name) => {
+        const keyRecords = await db
+          .select()
+          .from(apiKeys)
+          .where(eq(apiKeys.keyName, name))
+          .limit(1);
+        const keyRecord = keyRecords[0];
+        return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+      });
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : 'Missing API key' }, 400);
     }
 
     const providerKeys: Record<string, string> = {
-      [providerName]: decrypt(keyRecord.encryptedValue),
+      [resolvedPatch.providerName]: resolvedPatch.apiKey,
     };
 
     // Resolve active MCP servers for this agent
@@ -316,6 +311,7 @@ agentRoutes.patch('/:id', requireAuth, async (c) => {
       agentId,
       model: newModel,
       providerKeys,
+      resolvedProviderName: resolvedPatch.providerName,
       packPath: agent.packPath,
       mcpServers,
     });
