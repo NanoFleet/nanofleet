@@ -67,6 +67,8 @@
     "confirmDelete": "Are you sure you want to delete this agent?",
     "addTag": "Add tag",
     "tagPlaceholder": "developer",
+    "changeModel": "Click to change model",
+    "modelRestartWarning": "Restart the agent for this change to take effect",
     "pause": "Stop",
     "resume": "Start",
     "delete": "Delete",

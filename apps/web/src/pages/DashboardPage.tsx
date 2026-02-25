@@ -14,6 +14,7 @@ interface Agent {
   name: string;
   status: string;
   packPath: string;
+  model: string | null;
   containerId: string | null;
   token: string;
   tags: string[];
@@ -147,6 +148,27 @@ export function DashboardPage() {
   const [tagInput, setTagInput] = useState('');
   const tagInputRef = useRef<HTMLInputElement>(null);
 
+  // Per-agent model editing state
+  const [editingModelFor, setEditingModelFor] = useState<string | null>(null);
+  const [modelInput, setModelInput] = useState('');
+
+  const updateModelMutation = useMutation({
+    mutationFn: ({ id, model }: { id: string; model: string }) => api.updateAgent(id, { model }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agents'] }),
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : t('dashboard.error'));
+    },
+  });
+
+  const handleSaveModel = (agent: Agent) => {
+    const trimmed = modelInput.trim();
+    if (trimmed && trimmed !== agent.model) {
+      updateModelMutation.mutate({ id: agent.id, model: trimmed });
+    }
+    setEditingModelFor(null);
+    setModelInput('');
+  };
+
   useEffect(() => {
     if (addingTagFor) tagInputRef.current?.focus();
   }, [addingTagFor]);
@@ -240,13 +262,49 @@ export function DashboardPage() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-semibold text-neutral-900">{agent.name}</h3>
-                  <span
-                    className={`inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full ${
-                      statusColors[agent.status] || 'bg-neutral-100 text-neutral-800'
-                    }`}
-                  >
-                    {t(`dashboard.status.${agent.status}`)}
-                  </span>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span
+                      className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                        statusColors[agent.status] || 'bg-neutral-100 text-neutral-800'
+                      }`}
+                    >
+                      {t(`dashboard.status.${agent.status}`)}
+                    </span>
+                    {editingModelFor === agent.id ? (
+                      <div className="flex flex-col gap-1">
+                        <input
+                          type="text"
+                          value={modelInput}
+                          onChange={(e) => setModelInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveModel(agent);
+                            if (e.key === 'Escape') {
+                              setEditingModelFor(null);
+                              setModelInput('');
+                            }
+                          }}
+                          onBlur={() => handleSaveModel(agent)}
+                          placeholder="provider/model-name"
+                          className="px-2 py-0.5 text-xs border border-neutral-300 rounded focus:outline-none focus:ring-1 focus:ring-neutral-400 font-mono w-44"
+                        />
+                        <p className="text-[10px] text-amber-600">
+                          {t('dashboard.modelRestartWarning')}
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingModelFor(agent.id);
+                          setModelInput(agent.model ?? '');
+                        }}
+                        className="text-xs text-neutral-400 hover:text-neutral-600 font-mono truncate max-w-[160px] text-left"
+                        title={t('dashboard.changeModel')}
+                      >
+                        {agent.model ?? '—'}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   {agent.status === 'running' ? (

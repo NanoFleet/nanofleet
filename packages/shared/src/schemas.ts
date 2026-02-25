@@ -35,6 +35,7 @@ export const AgentSchema = z.object({
   name: z.string(),
   status: AgentStatusEnum,
   packPath: z.string(),
+  model: z.string().nullable(),
   containerId: z.string().nullable(),
   token: z.string(),
   tags: z.array(z.string()).optional().default([]),
@@ -54,7 +55,8 @@ export const CreateAgentPayloadSchema = z.object({
 export type CreateAgentPayload = z.infer<typeof CreateAgentPayloadSchema>;
 
 export const UpdateAgentPayloadSchema = z.object({
-  tags: z.array(z.string()),
+  tags: z.array(z.string()).optional(),
+  model: z.string().optional(),
 });
 
 export type UpdateAgentPayload = z.infer<typeof UpdateAgentPayloadSchema>;
