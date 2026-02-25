@@ -72,7 +72,11 @@ export function DashboardPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['packs'] });
       // After upload, immediately deploy with the new pack name
-      createAgentMutation.mutate({ name: agentName, packPath: data.packName, model: agentModel || undefined });
+      createAgentMutation.mutate({
+        name: agentName,
+        packPath: data.packName,
+        model: agentModel || undefined,
+      });
     },
     onError: (err) => {
       overlay.hide();
@@ -230,7 +234,11 @@ export function DashboardPage() {
     if (packFile) {
       uploadPackMutation.mutate(packFile);
     } else {
-      createAgentMutation.mutate({ name: agentName, packPath: 'default', model: agentModel || undefined });
+      createAgentMutation.mutate({
+        name: agentName,
+        packPath: 'default',
+        model: agentModel || undefined,
+      });
     }
   };
 
