@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 class AuthError extends Error {
   constructor(
@@ -168,12 +168,14 @@ export const api = {
   },
 
   getAgents: async (): Promise<{
+    nanobotImageVersion: string | null;
     agents: Array<{
       id: string;
       name: string;
       status: string;
       packPath: string;
       model: string | null;
+      nanobotVersion?: string | null;
       containerId: string | null;
       token: string;
       tags: string[];
@@ -222,6 +224,10 @@ export const api = {
 
   resumeAgent: async (id: string): Promise<{ success: boolean }> => {
     return api.post(`/api/agents/${id}/resume`);
+  },
+
+  upgradeAgent: async (id: string): Promise<{ success: boolean }> => {
+    return api.post(`/api/agents/${id}/upgrade`);
   },
 
   getAgentConfig: async (id: string, file: 'soul' | 'tools'): Promise<{ content: string }> => {

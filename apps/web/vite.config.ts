@@ -17,4 +17,11 @@ export default defineConfig({
       '@nanofleet/shared': path.resolve(__dirname, '../../packages/shared/src/index.ts'),
     },
   },
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/ws': { target: 'http://localhost:3000', ws: true },
+      '/internal/ws': { target: 'http://localhost:3000', ws: true },
+    },
+  },
 });

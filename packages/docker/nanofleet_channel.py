@@ -44,16 +44,19 @@ class NanoFleetChannel(BaseChannel):
         super().__init__(config, bus)
         self._ws = None
         self._send_queue: asyncio.Queue = asyncio.Queue()
-        # Subscribe to outbound messages from the bus
-        self.bus.subscribe_outbound("nanofleet", self._enqueue_outbound)
 
-    async def _enqueue_outbound(self, msg: OutboundMessage) -> None:
-        """Callback invoked by the bus when a response is ready."""
-        await self._send_queue.put(msg)
+    async def _drain_bus_outbound(self) -> None:
+        """Forward outbound messages from the bus into our send queue."""
+        while True:
+            msg = await self.bus.consume_outbound()
+            await self._send_queue.put(msg)
 
     async def start(self) -> None:
         self._running = True
         logger.info("[NanoFleet] Starting channel, connecting to %s", WS_URL)
+
+        # Drain outbound messages from the bus into our send queue
+        asyncio.create_task(self._drain_bus_outbound())
 
         while self._running:
             try:

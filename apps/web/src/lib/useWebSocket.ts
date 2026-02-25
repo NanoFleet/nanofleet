@@ -42,7 +42,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     connectingRef.current = true;
 
-    const ws = new WebSocket(`ws://localhost:3000/ws?token=${token}`);
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws?token=${token}`);
 
     ws.onopen = () => {
       connectingRef.current = false;

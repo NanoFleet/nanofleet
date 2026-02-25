@@ -6,7 +6,10 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-RUN uv pip install --system nanobot-ai websockets
+ARG NANOBOT_VERSION=0.1.4.post2
+RUN uv pip install --system nanobot-ai==${NANOBOT_VERSION} websockets
+ENV NANOBOT_VERSION=${NANOBOT_VERSION}
+LABEL nanobot_version=${NANOBOT_VERSION}
 
 RUN mkdir -p /root/.nanobot
 
