@@ -213,6 +213,7 @@ export const api = {
   createAgent: async (data: {
     name: string;
     packPath: string;
+    model?: string;
     sessionVars?: Record<string, string>;
   }): Promise<{ id: string; name: string; status: string; containerId: string }> => {
     return api.post('/api/agents', data);

@@ -52,6 +52,7 @@ export function DashboardPage() {
   const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null);
   const [agentName, setAgentName] = useState('');
+  const [agentModel, setAgentModel] = useState('');
   const [packFile, setPackFile] = useState<File | null>(null);
 
   const { data, isLoading, error } = useQuery({
@@ -71,7 +72,7 @@ export function DashboardPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['packs'] });
       // After upload, immediately deploy with the new pack name
-      createAgentMutation.mutate({ name: agentName, packPath: data.packName });
+      createAgentMutation.mutate({ name: agentName, packPath: data.packName, model: agentModel || undefined });
     },
     onError: (err) => {
       overlay.hide();
@@ -80,12 +81,13 @@ export function DashboardPage() {
   });
 
   const createAgentMutation = useMutation({
-    mutationFn: (data: { name: string; packPath: string }) => api.createAgent(data),
+    mutationFn: (data: { name: string; packPath: string; model?: string }) => api.createAgent(data),
     onMutate: () => overlay.show(t('dashboard.deploying')),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       setIsDeployModalOpen(false);
       setAgentName('');
+      setAgentModel('');
       setPackFile(null);
       toast.success(t('dashboard.agentCreated'));
     },
@@ -228,7 +230,7 @@ export function DashboardPage() {
     if (packFile) {
       uploadPackMutation.mutate(packFile);
     } else {
-      createAgentMutation.mutate({ name: agentName, packPath: 'default' });
+      createAgentMutation.mutate({ name: agentName, packPath: 'default', model: agentModel || undefined });
     }
   };
 
@@ -483,6 +485,7 @@ export function DashboardPage() {
                   setIsDeployModalOpen(false);
                   setPackFile(null);
                   setAgentName('');
+                  setAgentModel('');
                 }}
                 className="p-1 hover:bg-neutral-100 rounded"
               >
@@ -507,6 +510,23 @@ export function DashboardPage() {
                     if (e.key === 'Enter') handleDeploy();
                   }}
                   placeholder={t('dashboard.agentNamePlaceholder')}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="agentModel"
+                  className="block text-sm font-medium text-neutral-700 mb-1"
+                >
+                  {t('dashboard.modelOverride')}
+                </label>
+                <input
+                  id="agentModel"
+                  type="text"
+                  value={agentModel}
+                  onChange={(e) => setAgentModel(e.target.value)}
+                  placeholder={t('dashboard.modelOverridePlaceholder')}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900"
                 />
               </div>
@@ -546,6 +566,7 @@ export function DashboardPage() {
                   setIsDeployModalOpen(false);
                   setPackFile(null);
                   setAgentName('');
+                  setAgentModel('');
                 }}
                 className="px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-100 rounded-md"
               >
