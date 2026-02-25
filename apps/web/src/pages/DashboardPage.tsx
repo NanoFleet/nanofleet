@@ -15,6 +15,7 @@ interface Agent {
   status: string;
   packPath: string;
   model: string | null;
+  nanobotVersion?: string | null;
   containerId: string | null;
   token: string;
   tags: string[];
@@ -382,6 +383,12 @@ export function DashboardPage() {
                   </button>
                 )}
               </div>
+
+              {agent.nanobotVersion && (
+                <p className="mt-2 text-[10px] text-neutral-400 font-mono">
+                  nanobot {agent.nanobotVersion}
+                </p>
+              )}
 
               <Link
                 to={`/agents/${agent.id}`}

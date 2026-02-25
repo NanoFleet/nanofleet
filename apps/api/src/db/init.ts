@@ -25,6 +25,7 @@ export function initDb() {
       status text DEFAULT 'starting' NOT NULL,
       pack_path text NOT NULL,
       model text,
+      nanobot_version text,
       container_id text,
       token text NOT NULL,
       tags text,

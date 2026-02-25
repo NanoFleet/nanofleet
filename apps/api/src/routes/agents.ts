@@ -107,7 +107,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
   const { providerName, apiKey } = resolved;
   const providerKeys: Record<string, string> = { [providerName]: apiKey };
 
-  await ensureNanobotImage();
+  const nanobotVersion = await ensureNanobotImage();
 
   const agentId = crypto.randomUUID();
   const internalToken = crypto.randomUUID();
@@ -184,6 +184,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
     status: 'starting',
     packPath: packFullPath,
     model,
+    nanobotVersion,
     containerId,
     token: internalToken,
     tags: JSON.stringify(tags ?? []),

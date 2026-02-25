@@ -8,6 +8,8 @@ RUN apt-get update && \
 
 ARG NANOBOT_VERSION=0.1.4.post2
 RUN uv pip install --system nanobot-ai==${NANOBOT_VERSION} websockets
+ENV NANOBOT_VERSION=${NANOBOT_VERSION}
+LABEL nanobot_version=${NANOBOT_VERSION}
 
 RUN mkdir -p /root/.nanobot
 

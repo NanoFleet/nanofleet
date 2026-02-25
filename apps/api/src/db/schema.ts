@@ -23,6 +23,7 @@ export const agents = sqliteTable('agents', {
     .default('starting'),
   packPath: text('pack_path').notNull(),
   model: text('model'),
+  nanobotVersion: text('nanobot_version'),
   containerId: text('container_id'),
   token: text('token').notNull(),
   tags: text('tags'),
