@@ -41,13 +41,14 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
     })
     .filter((e): e is McpServerEntry => e !== null);
 
-  // Read current model from pack manifest
+  // Use model from DB if set (user override), otherwise fall back to pack manifest
   const manifestPath = resolve(agent.packPath, 'manifest.json');
   const manifestContent = await readFile(manifestPath, 'utf-8');
   const manifest = AgentPackManifestSchema.parse(JSON.parse(manifestContent));
+  const model = agent.model ?? manifest.model;
 
   // Read provider key from DB
-  const modelParts = manifest.model.split('/');
+  const modelParts = model.split('/');
   const providerName = (modelParts[0] || '').toLowerCase();
   const [keyRecord] = await db
     .select()
@@ -76,7 +77,7 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
   // Regenerate config.json (does NOT overwrite SOUL.md/TOOLS.md if already present)
   await generateAgentConfig({
     agentId,
-    model: manifest.model,
+    model,
     providerKeys,
     packPath: agent.packPath,
     mcpServers,

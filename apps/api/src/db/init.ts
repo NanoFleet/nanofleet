@@ -24,6 +24,7 @@ export function initDb() {
       name text NOT NULL,
       status text DEFAULT 'starting' NOT NULL,
       pack_path text NOT NULL,
+      model text,
       container_id text,
       token text NOT NULL,
       tags text,

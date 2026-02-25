@@ -173,6 +173,7 @@ export const api = {
       name: string;
       status: string;
       packPath: string;
+      model: string | null;
       containerId: string | null;
       token: string;
       tags: string[];
@@ -190,6 +191,7 @@ export const api = {
       name: string;
       status: string;
       packPath: string;
+      model: string | null;
       containerId: string | null;
       token: string;
       tags: string[];
@@ -199,7 +201,10 @@ export const api = {
     return api.get(`/api/agents/${id}`);
   },
 
-  updateAgent: async (id: string, data: { tags: string[] }): Promise<{ success: boolean }> => {
+  updateAgent: async (
+    id: string,
+    data: { tags?: string[]; model?: string }
+  ): Promise<{ success: boolean }> => {
     return api.patch(`/api/agents/${id}`, data);
   },
 

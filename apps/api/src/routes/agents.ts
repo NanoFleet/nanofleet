@@ -189,6 +189,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
     name,
     status: 'starting',
     packPath: packFullPath,
+    model,
     containerId,
     token: internalToken,
     tags: JSON.stringify(tags ?? []),
@@ -257,10 +258,68 @@ agentRoutes.patch('/:id', requireAuth, async (c) => {
     return c.json({ error: 'Validation Error', details: parsed.error.issues }, 400);
   }
 
-  await db
-    .update(agents)
-    .set({ tags: JSON.stringify(parsed.data.tags) })
-    .where(eq(agents.id, agentId));
+  const updates: Record<string, unknown> = {};
+  if (parsed.data.tags !== undefined) {
+    updates.tags = JSON.stringify(parsed.data.tags);
+  }
+  if (parsed.data.model !== undefined) {
+    updates.model = parsed.data.model;
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(agents).set(updates).where(eq(agents.id, agentId));
+  }
+
+  // If model changed, regenerate config.json so the new model is picked up on next restart
+  if (parsed.data.model !== undefined) {
+    const newModel = parsed.data.model;
+    const providerName = (newModel.split('/')[0] || '').toLowerCase();
+
+    const [keyRecord] = await db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.keyName, providerName))
+      .limit(1);
+
+    if (!keyRecord) {
+      return c.json(
+        { error: `Missing API key '${providerName}'. Please configure it in Settings.` },
+        400
+      );
+    }
+
+    const providerKeys: Record<string, string> = {
+      [providerName]: decrypt(keyRecord.encryptedValue),
+    };
+
+    // Resolve active MCP servers for this agent
+    const agentPluginRows = await db
+      .select({ plugin: plugins })
+      .from(agentPlugins)
+      .innerJoin(plugins, eq(agentPlugins.pluginId, plugins.id))
+      .where(eq(agentPlugins.agentId, agentId));
+
+    const mcpServers: McpServerEntry[] = agentPluginRows
+      .map((row) => {
+        const entry = pluginRegistry.get(row.plugin.name);
+        if (!entry) return null;
+        return {
+          pluginName: row.plugin.name,
+          containerName: entry.containerName,
+          mcpPort: entry.mcpPort,
+          toolsDoc: entry.toolsDoc ?? null,
+        };
+      })
+      .filter((e): e is McpServerEntry => e !== null);
+
+    await generateAgentConfig({
+      agentId,
+      model: newModel,
+      providerKeys,
+      packPath: agent.packPath,
+      mcpServers,
+    });
+  }
 
   return c.json({ success: true });
 });
