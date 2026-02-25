@@ -51,12 +51,6 @@ bun run dev
 rm apps/api/nanofleet.db
 ```
 
-## Lint
-
-```bash
-bun run lint
-```
-
 ## Documentation
 
 | File | Description |
