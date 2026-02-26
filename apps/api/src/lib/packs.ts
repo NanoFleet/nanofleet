@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, relative, resolve, sep } from 'node:path';
 
@@ -15,6 +15,10 @@ export async function ensurePacksDir(): Promise<void> {
 
 export async function extractPack(zipBuffer: Buffer, packName: string): Promise<string> {
   const targetDir = resolve(PACKS_DIR, packName);
+
+  try {
+    await rm(targetDir, { recursive: true, force: true });
+  } catch {}
 
   await mkdir(targetDir, { recursive: true });
 
