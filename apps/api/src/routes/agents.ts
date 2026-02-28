@@ -10,8 +10,7 @@ import {
   UpdateAgentPayloadSchema,
 } from '@nanofleet/shared';
 import { db } from '../db';
-import { agentPlugins, agents, apiKeys, messages, plugins } from '../db/schema';
-import { sendToAgent } from '../lib/agent-bus';
+import { agentPlugins, agents, apiKeys, plugins } from '../db/schema';
 import { rebuildAndRestartAgent } from '../lib/agent-lifecycle';
 import { decrypt } from '../lib/crypto';
 import { attachToContainerLogs } from '../lib/log-stream';
@@ -642,22 +641,6 @@ agentRoutes.delete('/:id/workspace/:filename', requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
-agentRoutes.get('/:id/messages', requireAuth, async (c) => {
-  const agentId = c.req.param('id');
-
-  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
-  if (!agent) {
-    return c.json({ error: 'Agent not found' }, 404);
-  }
-
-  const history = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.agentId, agentId))
-    .orderBy(messages.createdAt);
-
-  return c.json({ messages: history });
-});
 
 // ---------------------------------------------------------------------------
 // Agent ↔ Plugin scope management (7.4)
@@ -726,32 +709,3 @@ agentRoutes.delete('/:id/plugins/:pluginId', requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
-agentRoutes.post('/:id/messages', requireAuth, async (c) => {
-  const agentId = c.req.param('id');
-
-  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
-  if (!agent) {
-    return c.json({ error: 'Agent not found' }, 404);
-  }
-
-  const body = await c.req.json();
-  if (typeof body.content !== 'string' || !body.content.trim()) {
-    return c.json({ error: 'content must be a non-empty string' }, 400);
-  }
-
-  const content: string = body.content.trim();
-
-  await db.insert(messages).values({
-    id: crypto.randomUUID(),
-    agentId,
-    role: 'user',
-    content,
-  });
-
-  const delivered = sendToAgent(agentId, content);
-  if (!delivered) {
-    return c.json({ error: 'Agent is not connected' }, 503);
-  }
-
-  return c.json({ success: true }, 201);
-});

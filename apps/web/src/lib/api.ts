@@ -251,24 +251,6 @@ export const api = {
     return response.json();
   },
 
-  getAgentMessages: async (
-    id: string
-  ): Promise<{
-    messages: Array<{
-      id: string;
-      agentId: string;
-      role: 'user' | 'agent';
-      content: string;
-      createdAt: string;
-    }>;
-  }> => {
-    return api.get(`/api/agents/${id}/messages`);
-  },
-
-  sendAgentMessage: async (id: string, content: string): Promise<{ success: boolean }> => {
-    return api.post(`/api/agents/${id}/messages`, { content });
-  },
-
   listAgentFiles: async (id: string): Promise<{ files: Array<{ name: string; size: number }> }> => {
     return api.get(`/api/agents/${id}/workspace`);
   },

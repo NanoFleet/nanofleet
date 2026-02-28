@@ -62,16 +62,6 @@ export function initDb() {
   `);
 
   sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id text PRIMARY KEY,
-      agent_id text NOT NULL,
-      role text NOT NULL,
-      content text NOT NULL,
-      created_at integer NOT NULL
-    )
-  `);
-
-  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS api_keys (
       id text PRIMARY KEY,
       user_id text NOT NULL,

@@ -59,16 +59,6 @@ export const agentPlugins = sqliteTable('agent_plugins', {
   pluginId: text('plugin_id').notNull(),
 });
 
-export const messages = sqliteTable('messages', {
-  id: text('id').primaryKey(),
-  agentId: text('agent_id').notNull(),
-  role: text('role', { enum: ['user', 'agent'] }).notNull(),
-  content: text('content').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
-
 export const apiKeys = sqliteTable('api_keys', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),

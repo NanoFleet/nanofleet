@@ -3,18 +3,11 @@ import { createBunWebSocket } from 'hono/bun';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 
-import { asc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { config } from './config/env';
 import { db } from './db';
 import { initDb } from './db/init';
-import { agents, messages as messagesTable, plugins } from './db/schema';
-import {
-  handleAgentResponse,
-  handleAgentThinking,
-  registerAgentConnection,
-  removeAgentConnection,
-  sendToAgent,
-} from './lib/agent-bus';
+import { agents, plugins } from './db/schema';
 import { checkEncryptionKey } from './lib/crypto';
 import { initDockerInfrastructure } from './lib/docker';
 import {
@@ -65,7 +58,7 @@ app.get('/api/protected', requireAuth, (c) => {
   return c.json({ message: 'Protected route', user });
 });
 
-// Internal routes for plugins/agents — authenticated by NANO_INTERNAL_TOKEN
+// Internal routes for plugins/agents — authenticated by internal token
 // Token can belong to an agent OR a plugin
 async function requireInternalToken(token: string | undefined) {
   if (!token) return null;
@@ -103,99 +96,6 @@ app.get('/internal/agents/:id', async (c) => {
   if (!agent) return c.json({ error: 'Not found' }, 404);
   return c.json({ agent });
 });
-
-app.get('/internal/agents/:id/messages', async (c) => {
-  const token = c.req.header('Authorization')?.replace('Bearer ', '');
-  if (!(await requireInternalToken(token))) return c.json({ error: 'Unauthorized' }, 401);
-
-  const agentId = c.req.param('id');
-  const rows = await db
-    .select()
-    .from(messagesTable)
-    .where(eq(messagesTable.agentId, agentId))
-    .orderBy(asc(messagesTable.createdAt));
-
-  return c.json({ messages: rows });
-});
-
-app.post('/internal/agents/:id/messages', async (c) => {
-  const token = c.req.header('Authorization')?.replace('Bearer ', '');
-  if (!(await requireInternalToken(token))) return c.json({ error: 'Unauthorized' }, 401);
-
-  const agentId = c.req.param('id');
-  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
-  if (!agent) return c.json({ error: 'Not found' }, 404);
-
-  const body = await c.req.json();
-  if (typeof body.content !== 'string' || !body.content.trim()) {
-    return c.json({ error: 'content is required' }, 400);
-  }
-
-  const content: string = body.content.trim();
-
-  await db.insert(messagesTable).values({
-    id: crypto.randomUUID(),
-    agentId,
-    role: 'user',
-    content,
-  });
-
-  const delivered = sendToAgent(agentId, content);
-  if (!delivered) {
-    return c.json({ error: 'Agent is not connected' }, 503);
-  }
-
-  return c.json({ success: true }, 201);
-});
-
-app.get(
-  '/internal/ws',
-  upgradeWebSocket(async (c) => {
-    const token = c.req.header('Authorization')?.replace('Bearer ', '');
-    let agentId: string | null = null;
-
-    return {
-      async onOpen(_event, ws) {
-        if (!token) {
-          ws.close(4001, 'Unauthorized');
-          return;
-        }
-
-        const [agent] = await db.select().from(agents).where(eq(agents.token, token)).limit(1);
-
-        if (!agent) {
-          ws.close(4001, 'Unauthorized');
-          return;
-        }
-
-        agentId = agent.id;
-        registerAgentConnection(agentId, ws as never);
-        console.log(`[InternalWS] Agent ${agentId} connected`);
-      },
-      async onMessage(event, _ws) {
-        if (!agentId) return;
-
-        try {
-          const message = JSON.parse(event.data as string);
-
-          if (message.type === 'response' && typeof message.content === 'string') {
-            await handleAgentResponse(agentId, message.content);
-          } else if (message.type === 'thinking') {
-            handleAgentThinking(agentId);
-          }
-        } catch (error) {
-          console.error('[InternalWS] Failed to parse message:', error);
-        }
-      },
-      onClose(_event, _ws) {
-        if (agentId) {
-          removeAgentConnection(agentId);
-          console.log(`[InternalWS] Agent ${agentId} disconnected`);
-        }
-      },
-    };
-  })
-);
 
 app.get(
   '/ws',
