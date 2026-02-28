@@ -14,23 +14,26 @@ export async function getAgentImageVersion(): Promise<string | null> {
 }
 
 export async function ensureAgentImage(): Promise<string | null> {
-  try {
-    const images = await docker.listImages();
-    const exists = images.some((img) => img.RepoTags?.includes(IMAGE_NAME) ?? false);
+  const images = await docker.listImages();
+  const exists = images.some((img) => img.RepoTags?.includes(IMAGE_NAME) ?? false);
 
-    if (exists) {
-      console.log(`[Docker] Image '${IMAGE_NAME}' found`);
-    } else {
-      throw new Error(
-        `[Docker] Image '${IMAGE_NAME}' not found. Please build nanofleet-agent first.`
-      );
-    }
-
-    return await getAgentImageVersion();
-  } catch (error) {
-    console.error('[Docker] Failed to ensure agent image:', error);
-    throw error;
+  if (!exists) {
+    console.log(`[Docker] Image '${IMAGE_NAME}' not found locally, pulling...`);
+    await new Promise<void>((resolve, reject) => {
+      docker.pull(IMAGE_NAME, (err: Error | null, stream: NodeJS.ReadableStream) => {
+        if (err) return reject(err);
+        docker.modem.followProgress(stream, (err: Error | null) => {
+          if (err) return reject(err);
+          resolve();
+        });
+      });
+    });
+    console.log(`[Docker] Image '${IMAGE_NAME}' pulled successfully`);
+  } else {
+    console.log(`[Docker] Image '${IMAGE_NAME}' found`);
   }
+
+  return await getAgentImageVersion();
 }
 
 export { docker };

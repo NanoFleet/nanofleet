@@ -56,7 +56,7 @@ function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: 
   return (
     <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
       {agentVersion && <span>agent {agentVersion}</span>}
-      {data && (
+      {data && data.totalCost != null && (
         <span className="ml-auto">
           ${data.totalCost.toFixed(4)} · {data.requests} req
         </span>

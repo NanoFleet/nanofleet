@@ -35,7 +35,7 @@ export interface McpServerEntry {
 
 export interface SetupAgentWorkspaceParams {
   agentId: string;
-  packPath: string;
+  packPath: string | null;
   mcpServers?: McpServerEntry[];
 }
 
@@ -47,31 +47,46 @@ export async function setupAgentWorkspace({
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   await mkdir(workspaceDir, { recursive: true });
 
-  // Copy SOUL.md from pack → workspace (only if not already present)
-  const soulPath = resolve(workspaceDir, 'SOUL.md');
-  try {
-    await access(soulPath);
-    // Already exists — don't overwrite user edits
-  } catch {
+  if (packPath) {
+    // Copy SOUL.md from pack → workspace (only if not already present)
+    const soulPath = resolve(workspaceDir, 'SOUL.md');
     try {
-      await copyFile(resolve(packPath, 'SOUL.md'), soulPath);
+      await access(soulPath);
+      // Already exists — don't overwrite user edits
     } catch {
-      console.warn(`[AgentConfig] No SOUL.md found in pack: ${packPath}`);
+      try {
+        await copyFile(resolve(packPath, 'SOUL.md'), soulPath);
+      } catch {
+        console.warn(`[AgentConfig] No SOUL.md found in pack: ${packPath}`);
+      }
+    }
+
+    // Copy skills/ from pack → workspace (only if not already present)
+    const skillsDst = resolve(workspaceDir, 'skills');
+    try {
+      await access(skillsDst);
+      // Already exists — don't overwrite
+    } catch {
+      try {
+        await cp(resolve(packPath, 'skills'), skillsDst, { recursive: true });
+      } catch {
+        // No skills directory in pack — that's fine
+      }
     }
   }
 
-  // Copy skills/ from pack → workspace (only if not already present)
-  const skillsDst = resolve(workspaceDir, 'skills');
-  try {
-    await access(skillsDst);
-    // Already exists — don't overwrite
-  } catch {
+  // Create required/optional workspace files if absent (nanofleet-agent expects them to exist)
+  for (const filename of ['SOUL.md', 'MEMORY.md', 'STYLE.md', 'AGENTS.md', 'HISTORY.md']) {
+    const filePath = resolve(workspaceDir, filename);
     try {
-      await cp(resolve(packPath, 'skills'), skillsDst, { recursive: true });
+      await access(filePath);
     } catch {
-      // No skills directory in pack — that's fine
+      await writeFile(filePath, '', 'utf-8');
     }
   }
+
+  // Ensure skills directory exists
+  await mkdir(resolve(workspaceDir, 'skills'), { recursive: true });
 
   // Generate .mcp.json from active plugins.
   // Overwrite on every call so plugin changes are reflected on next restart.

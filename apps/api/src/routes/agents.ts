@@ -77,17 +77,31 @@ agentRoutes.post('/', requireAuth, async (c) => {
 
   const packFullPath = resolve(PACKS_DIR, packPath);
 
-  const validation = await validatePack(packFullPath);
-  if (!validation.valid) {
-    return c.json({ error: 'Invalid Agent Pack', errors: validation.errors }, 400);
+  // Check if the pack directory exists; if not and it's the default pack, treat as "no pack"
+  let packExists = false;
+  try {
+    await stat(packFullPath);
+    packExists = true;
+  } catch {}
+
+  if (packExists) {
+    const validation = await validatePack(packFullPath);
+    if (!validation.valid) {
+      return c.json({ error: 'Invalid Agent Pack', errors: validation.errors }, 400);
+    }
   }
 
-  const manifestPath = resolve(packFullPath, 'manifest.json');
-  const manifestContent = await readFile(manifestPath, 'utf-8');
-  const manifest = AgentPackManifestSchema.parse(JSON.parse(manifestContent));
-  const model = modelOverride ?? manifest.model;
+  let model: string;
+  if (packExists) {
+    const manifestPath = resolve(packFullPath, 'manifest.json');
+    const manifestContent = await readFile(manifestPath, 'utf-8');
+    const manifest = AgentPackManifestSchema.parse(JSON.parse(manifestContent));
+    model = modelOverride ?? manifest.model;
+  } else {
+    model = modelOverride ?? 'anthropic/claude-haiku-4-5';
+  }
 
-  const requiredEnvVars = await getRequiredEnvVars(packFullPath);
+  const requiredEnvVars = packExists ? await getRequiredEnvVars(packFullPath) : [];
 
   const envVars: Record<string, string> = {};
 
@@ -163,7 +177,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
 
   await setupAgentWorkspace({
     agentId,
-    packPath: packFullPath,
+    packPath: packExists ? packFullPath : null,
     mcpServers,
   });
 
