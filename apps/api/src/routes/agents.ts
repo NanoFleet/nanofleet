@@ -208,11 +208,9 @@ agentRoutes.post('/', requireAuth, async (c) => {
       'PORT=4111',
       `${providerEnvVarName}=${providerApiKey}`,
     ],
-    ExposedPorts: { '4111/tcp': {} },
     HostConfig: {
       Binds: [`${agentWorkspaceHostPath(agentId)}:/workspace`, `${SHARED_HOST_DIR}:/shared`],
       NetworkMode: NETWORK_NAME,
-      PortBindings: { '4111/tcp': [{ HostPort: '4111' }] },
     },
   });
 
