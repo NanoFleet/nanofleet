@@ -130,6 +130,7 @@ function ChannelBadge({ agentId }: { agentId: string }) {
 
   const channels = data?.channels ?? [];
   const hasChannel = channels.length > 0;
+  const allRunning = hasChannel && channels.every((ch) => ch.status === 'running');
 
   const deployMutation = useMutation({
     mutationFn: () =>
@@ -170,8 +171,14 @@ function ChannelBadge({ agentId }: { agentId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`p-1.5 rounded hover:bg-neutral-100 transition-colors ${hasChannel ? 'text-green-500 hover:text-green-700' : 'text-red-400 hover:text-red-600'}`}
-        title={hasChannel ? 'Channel configured' : 'No channel — click to configure'}
+        className={`p-1.5 rounded hover:bg-neutral-100 transition-colors ${allRunning ? 'text-green-500 hover:text-green-700' : hasChannel ? 'text-orange-400 hover:text-orange-600' : 'text-neutral-400 hover:text-neutral-600'}`}
+        title={
+          allRunning
+            ? 'Channel running'
+            : hasChannel
+              ? 'Channel error — click to manage'
+              : 'No channel — click to configure'
+        }
       >
         <Radio className="w-4 h-4" />
       </button>
