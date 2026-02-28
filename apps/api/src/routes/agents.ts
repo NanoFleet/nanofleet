@@ -3,7 +3,7 @@ import { basename, resolve } from 'node:path';
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
-import { docker, ensureNanobotImage, getNanobotVersion } from '@nanofleet/docker';
+import { docker, ensureAgentImage, getAgentImageVersion } from '@nanofleet/docker';
 import {
   AgentPackManifestSchema,
   CreateAgentPayloadSchema,
@@ -15,13 +15,11 @@ import { rebuildAndRestartAgent } from '../lib/agent-lifecycle';
 import { decrypt } from '../lib/crypto';
 import { attachToContainerLogs } from '../lib/log-stream';
 import {
-  INSTANCES_HOST_DIR,
   type McpServerEntry,
   SHARED_HOST_DIR,
   agentWorkspaceHostPath,
   agentWorkspaceInternalPath,
-  generateAgentConfig,
-  resolveProvider,
+  setupAgentWorkspace,
 } from '../lib/agent-config';
 import { PACKS_DIR, getRequiredEnvVars, validatePack } from '../lib/packs';
 import { broadcastAgentStatus, broadcastToAgent } from '../lib/ws-manager';
@@ -32,6 +30,39 @@ import { pluginRegistry } from './plugins';
 export const agentRoutes = new Hono();
 
 const NETWORK_NAME = 'nanofleet-net';
+
+// Routing providers that can handle any model vendor.
+const ROUTING_PROVIDERS = ['openrouter', 'vllm'] as const;
+
+// Build the env var name for a provider API key (e.g. "anthropic" → "ANTHROPIC_API_KEY").
+function providerEnvVar(providerName: string): string {
+  return `${providerName.toUpperCase()}_API_KEY`;
+}
+
+// Resolve which provider key to use for a given model string.
+// Returns { envVarName, apiKey } so the key can be passed directly as an env var to the container.
+async function resolveProviderKey(
+  model: string,
+  lookupKey: (name: string) => Promise<string | null>
+): Promise<{ envVarName: string; apiKey: string }> {
+  const vendorName = (model.split('/')[0] || '').toLowerCase();
+
+  const directKey = await lookupKey(vendorName);
+  if (directKey) {
+    return { envVarName: providerEnvVar(vendorName), apiKey: directKey };
+  }
+
+  for (const routingProvider of ROUTING_PROVIDERS) {
+    const routingKey = await lookupKey(routingProvider);
+    if (routingKey) {
+      return { envVarName: providerEnvVar(routingProvider), apiKey: routingKey };
+    }
+  }
+
+  throw new Error(
+    `Missing API key for model '${model}'. Add a '${vendorName}' key or a routing provider key (${ROUTING_PROVIDERS.join(', ')}) in Settings.`
+  );
+}
 
 agentRoutes.post('/', requireAuth, async (c) => {
   const user = c.get('user') as AuthContext;
@@ -83,10 +114,10 @@ agentRoutes.post('/', requireAuth, async (c) => {
     }
   }
 
-  let resolved: { providerName: string; apiKey: string };
+  let providerEnvVarName: string;
+  let providerApiKey: string;
   try {
-    resolved = await resolveProvider(model, async (name) => {
-      // Check sessionVars first (e.g. ANTHROPIC_API_KEY), then vault
+    const result = await resolveProviderKey(model, async (name) => {
       const varName = `${name.toUpperCase()}_API_KEY`;
       if (envVars[varName]) return envVars[varName];
       const keyRecords = await db
@@ -99,30 +130,15 @@ agentRoutes.post('/', requireAuth, async (c) => {
       const keyRecord = keyRecords[0];
       return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
     });
+    providerEnvVarName = result.envVarName;
+    providerApiKey = result.apiKey;
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : 'Missing API key' }, 400);
   }
 
-  const { providerName, apiKey } = resolved;
-  const providerKeys: Record<string, string> = { [providerName]: apiKey };
-
-  const nanobotVersion = await ensureNanobotImage();
+  const agentVersion = await ensureAgentImage();
 
   const agentId = crypto.randomUUID();
-  const internalToken = crypto.randomUUID();
-
-  // Read Brave Search key if the pack requests web search
-  let braveApiKey: string | undefined;
-  if (manifest.webSearch) {
-    const [braveRecord] = await db
-      .select()
-      .from(apiKeys)
-      .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, 'brave')))
-      .limit(1);
-    if (braveRecord) {
-      braveApiKey = decrypt(braveRecord.encryptedValue);
-    }
-  }
 
   // Auto-link all running plugins to this new agent
   const runningPlugins = await db.select().from(plugins).where(eq(plugins.status, 'running'));
@@ -145,30 +161,26 @@ agentRoutes.post('/', requireAuth, async (c) => {
     })
     .filter((e): e is McpServerEntry => e !== null);
 
-  const instanceDir = await generateAgentConfig({
+  await setupAgentWorkspace({
     agentId,
-    model,
-    providerKeys,
-    resolvedProviderName: providerName,
     packPath: packFullPath,
     mcpServers,
-    webSearch: manifest.webSearch && !!braveApiKey,
-    braveApiKey,
   });
 
   const container = await docker.createContainer({
-    Image: 'nanofleet-nanobot:latest',
+    Image: 'nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
     Env: [
-      `NANO_INTERNAL_TOKEN=${internalToken}`,
-      `NANO_API_URL=${process.env.NANO_API_INTERNAL_URL ?? 'http://host.docker.internal:3000'}`,
-      `NANO_AGENT_ID=${agentId}`,
+      `AGENT_MODEL=${model}`,
+      `AGENT_WORKSPACE=/workspace`,
+      `MEMORY_DB_PATH=/workspace/.db/agent.db`,
+      `PORT=4111`,
+      `${providerEnvVarName}=${providerApiKey}`,
     ],
     HostConfig: {
       Binds: [
-        `${agentWorkspaceHostPath(agentId)}:/workspace/${agentId}`,
+        `${agentWorkspaceHostPath(agentId)}:/workspace`,
         `${SHARED_HOST_DIR}:/shared`,
-        `${INSTANCES_HOST_DIR}/${agentId}:/root/.nanobot`,
       ],
       NetworkMode: NETWORK_NAME,
     },
@@ -183,9 +195,9 @@ agentRoutes.post('/', requireAuth, async (c) => {
     status: 'starting',
     packPath: packFullPath,
     model,
-    nanobotVersion,
+    agentVersion,
     containerId,
-    token: internalToken,
+    token: crypto.randomUUID(),
     tags: JSON.stringify(tags ?? []),
   });
 
@@ -221,13 +233,13 @@ function parseTags(raw: string | null): string[] {
 }
 
 agentRoutes.get('/', requireAuth, async (c) => {
-  const [allAgents, nanobotImageVersion] = await Promise.all([
+  const [allAgents, agentImageVersion] = await Promise.all([
     db.select().from(agents),
-    getNanobotVersion(),
+    getAgentImageVersion(),
   ]);
 
   return c.json({
-    nanobotImageVersion,
+    agentImageVersion,
     agents: allAgents.map((a) => ({ ...a, tags: parseTags(a.tags) })),
   });
 });
@@ -266,59 +278,6 @@ agentRoutes.patch('/:id', requireAuth, async (c) => {
 
   if (Object.keys(updates).length > 0) {
     await db.update(agents).set(updates).where(eq(agents.id, agentId));
-  }
-
-  // If model changed, regenerate config.json so the new model is picked up on next restart
-  if (parsed.data.model !== undefined) {
-    const newModel = parsed.data.model;
-
-    let resolvedPatch: { providerName: string; apiKey: string };
-    try {
-      resolvedPatch = await resolveProvider(newModel, async (name) => {
-        const keyRecords = await db
-          .select()
-          .from(apiKeys)
-          .where(eq(apiKeys.keyName, name))
-          .limit(1);
-        const keyRecord = keyRecords[0];
-        return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
-      });
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : 'Missing API key' }, 400);
-    }
-
-    const providerKeys: Record<string, string> = {
-      [resolvedPatch.providerName]: resolvedPatch.apiKey,
-    };
-
-    // Resolve active MCP servers for this agent
-    const agentPluginRows = await db
-      .select({ plugin: plugins })
-      .from(agentPlugins)
-      .innerJoin(plugins, eq(agentPlugins.pluginId, plugins.id))
-      .where(eq(agentPlugins.agentId, agentId));
-
-    const mcpServers: McpServerEntry[] = agentPluginRows
-      .map((row) => {
-        const entry = pluginRegistry.get(row.plugin.name);
-        if (!entry) return null;
-        return {
-          pluginName: row.plugin.name,
-          containerName: entry.containerName,
-          mcpPort: entry.mcpPort,
-          toolsDoc: entry.toolsDoc ?? null,
-        };
-      })
-      .filter((e): e is McpServerEntry => e !== null);
-
-    await generateAgentConfig({
-      agentId,
-      model: newModel,
-      providerKeys,
-      resolvedProviderName: resolvedPatch.providerName,
-      packPath: agent.packPath,
-      mcpServers,
-    });
   }
 
   return c.json({ success: true });
@@ -391,21 +350,48 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
     }
   }
 
-  const nanobotVersion = await getNanobotVersion();
+  const agentVersion = await getAgentImageVersion();
+
+  // Resolve provider key from vault to rebuild env vars
+  const model = agent.model ?? '';
+  let providerEnvVarName: string | undefined;
+  let providerApiKey: string | undefined;
+  if (model) {
+    try {
+      const result = await resolveProviderKey(model, async (name) => {
+        const [keyRecord] = await db
+          .select()
+          .from(apiKeys)
+          .where(eq(apiKeys.keyName, name))
+          .limit(1);
+        return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+      });
+      providerEnvVarName = result.envVarName;
+      providerApiKey = result.apiKey;
+    } catch {
+      // If key resolution fails, container will start without provider key
+      console.warn(`[Upgrade] Could not resolve provider key for agent ${agentId}`);
+    }
+  }
+
+  const envVars = [
+    `AGENT_MODEL=${model}`,
+    `AGENT_WORKSPACE=/workspace`,
+    `MEMORY_DB_PATH=/workspace/.db/agent.db`,
+    `PORT=4111`,
+    ...(providerEnvVarName && providerApiKey
+      ? [`${providerEnvVarName}=${providerApiKey}`]
+      : []),
+  ];
 
   const container = await docker.createContainer({
-    Image: 'nanofleet-nanobot:latest',
+    Image: 'nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
-    Env: [
-      `NANO_INTERNAL_TOKEN=${agent.token}`,
-      `NANO_API_URL=${process.env.NANO_API_INTERNAL_URL ?? 'http://host.docker.internal:3000'}`,
-      `NANO_AGENT_ID=${agentId}`,
-    ],
+    Env: envVars,
     HostConfig: {
       Binds: [
-        `${agentWorkspaceHostPath(agentId)}:/workspace/${agentId}`,
+        `${agentWorkspaceHostPath(agentId)}:/workspace`,
         `${SHARED_HOST_DIR}:/shared`,
-        `${INSTANCES_HOST_DIR}/${agentId}:/root/.nanobot`,
       ],
       NetworkMode: NETWORK_NAME,
     },
@@ -416,7 +402,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
 
   await db
     .update(agents)
-    .set({ containerId, nanobotVersion, status: 'starting' })
+    .set({ containerId, agentVersion, status: 'starting' })
     .where(eq(agents.id, agentId));
 
   await container.start();
@@ -641,9 +627,8 @@ agentRoutes.delete('/:id/workspace/:filename', requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
-
 // ---------------------------------------------------------------------------
-// Agent ↔ Plugin scope management (7.4)
+// Agent ↔ Plugin scope management
 // ---------------------------------------------------------------------------
 
 agentRoutes.get('/:id/plugins', requireAuth, async (c) => {
@@ -685,7 +670,7 @@ agentRoutes.post('/:id/plugins/:pluginId', requireAuth, async (c) => {
 
   await db.insert(agentPlugins).values({ agentId, pluginId });
 
-  // Rebuild config and restart agent so the new MCP server is available
+  // Rebuild .mcp.json and restart agent so the new MCP server is available
   try {
     await rebuildAndRestartAgent(agentId);
   } catch (err) {
@@ -708,4 +693,3 @@ agentRoutes.delete('/:id/plugins/:pluginId', requireAuth, async (c) => {
 
   return c.json({ success: true });
 });
-
