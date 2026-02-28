@@ -20,12 +20,13 @@ A valid Agent Pack must follow a strict "File-First" architecture:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | yes | Pack identifier |
-| `version` | string | yes | Semantic version |
-| `author` | string | no | Pack author |
-| `model` | string | yes | LLM model to use (e.g. `openai/gpt-4o`) |
-| `requiredEnvVars` | string[] | no | Extra API keys the agent needs (resolved from the vault) |
-| `webSearch` | boolean | no | Enable Brave Search. Requires a `brave` key in the vault. Silently disabled if the key is absent. |
+| `name` | string | yes | Pack identifier (display only) |
+| `version` | string | yes | Semantic version (display only) |
+| `author` | string | no | Pack author (display only) |
+| `model` | string | yes | LLM model to use (e.g. `anthropic/claude-haiku-4-5`) |
+| `requiredEnvVars` | string[] | no | API keys the agent needs, resolved from the vault at deploy time |
+
+Web search is enabled by default for all agents (Anthropic native `webSearch_20250305` tool) — no configuration required.
 
 Example:
 ```json
@@ -33,12 +34,13 @@ Example:
   "name": "my-agent",
   "version": "1.0.0",
   "author": "you",
-  "model": "openai/gpt-4o",
-  "webSearch": true
+  "model": "anthropic/claude-haiku-4-5"
 }
 ```
 
 ## 4. Orchestrator Integration
-1. **Validation:** When the user imports an Agent Pack, the API parses `manifest.json` to ensure compatibility and prompts the user for any missing API keys.
-2. **Mounting:** When deploying the agent, the Orchestrator mounts this folder directly into the Nanobot Docker container (e.g., at `/app/config`).
-3. **Execution:** The Nanobot engine reads `SOUL.md` to build its system prompt and reads `TOOLS.md` to understand the MCP capabilities provided by the Dashboard.
+1. **Validation:** The API checks that `manifest.json` and `SOUL.md` exist in the pack.
+2. **Env var resolution:** `requiredEnvVars` are looked up in the API key vault; deployment fails if any are missing.
+3. **Workspace setup:** Pack files are copied; missing workspace files are created empty.
+4. **`.mcp.json` generation:** Written with MCP endpoints of all plugins currently linked to the agent.
+5. **Container launch:** Workspace bind-mounted at `/workspace`; model and provider key injected as env vars.
