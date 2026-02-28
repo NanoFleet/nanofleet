@@ -94,6 +94,29 @@ app.get('/internal/agents/:id', async (c) => {
   return c.json({ agent });
 });
 
+app.post('/internal/agents/:id/messages', async (c) => {
+  const token = c.req.header('Authorization')?.replace('Bearer ', '');
+  if (!(await requireInternalToken(token))) return c.json({ error: 'Unauthorized' }, 401);
+
+  const agentId = c.req.param('id');
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) return c.json({ error: 'Not found' }, 404);
+
+  const body = await c.req.json();
+  const { content } = body;
+  if (!content) return c.json({ error: 'content is required' }, 400);
+
+  const res = await fetch(`http://nanofleet-agent-${agentId}:4111/api/agents/main/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content }] }),
+    signal: AbortSignal.timeout(120_000),
+  });
+
+  if (!res.ok) return c.json({ error: 'Failed to deliver message to agent' }, 502);
+  return c.json({ ok: true });
+});
+
 app.get(
   '/ws',
   async (c, next) => {
