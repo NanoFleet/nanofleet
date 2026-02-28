@@ -15,7 +15,7 @@ interface Agent {
   status: string;
   packPath: string;
   model: string | null;
-  nanobotVersion?: string | null;
+  agentVersion?: string | null;
   containerId: string | null;
   token: string;
   tags: string[];
@@ -44,6 +44,26 @@ const statusColors: Record<string, string> = {
   starting: 'bg-amber-100 text-amber-800',
   stopped: 'bg-red-100 text-red-800',
 };
+
+function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: string | null }) {
+  const { data } = useQuery({
+    queryKey: ['agent-usage', agentId],
+    queryFn: () => api.getAgentUsage(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  return (
+    <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+      {agentVersion && <span>agent {agentVersion}</span>}
+      {data && (
+        <span className="ml-auto">
+          ${data.totalCost.toFixed(4)} · {data.requests} req
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -251,7 +271,7 @@ export function DashboardPage() {
     }
   };
 
-  const nanobotImageVersion = data?.nanobotImageVersion ?? null;
+  const agentImageVersion = data?.agentImageVersion ?? null;
   const agents: Agent[] = (data?.agents || []).map((a) => ({ ...a, tags: a.tags ?? [] }));
 
   if (isLoading) {
@@ -348,15 +368,15 @@ export function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {agent.nanobotVersion &&
-                    nanobotImageVersion &&
-                    isOlderVersion(agent.nanobotVersion, nanobotImageVersion) && (
+                  {agent.agentVersion &&
+                    agentImageVersion &&
+                    isOlderVersion(agent.agentVersion, agentImageVersion) && (
                       <button
                         type="button"
                         onClick={() => upgradeMutation.mutate(agent.id)}
                         disabled={upgradeMutation.isPending}
                         className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded"
-                        title={`Update available: ${nanobotImageVersion}`}
+                        title={`Update available: ${agentImageVersion}`}
                       >
                         <ArrowUp className="w-4 h-4" />
                       </button>
@@ -437,11 +457,7 @@ export function DashboardPage() {
                 )}
               </div>
 
-              {agent.nanobotVersion && (
-                <p className="mt-2 text-[10px] text-neutral-400 font-mono">
-                  nanobot {agent.nanobotVersion}
-                </p>
-              )}
+              <AgentUsage agentId={agent.id} agentVersion={agent.agentVersion ?? null} />
 
               <Link
                 to={`/agents/${agent.id}`}

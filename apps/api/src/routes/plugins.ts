@@ -6,7 +6,7 @@ import { InstallPluginPayloadSchema, PluginManifestSchema } from '@nanofleet/sha
 import { db } from '../db';
 import { agentPlugins, agents, plugins } from '../db/schema';
 import { rebuildAndRestartAgent } from '../lib/agent-lifecycle';
-import { SHARED_HOST_DIR } from '../lib/nanobot-config';
+import { SHARED_HOST_DIR } from '../lib/agent-config';
 import { requireAuth } from '../middleware/auth';
 
 export const pluginRoutes = new Hono();

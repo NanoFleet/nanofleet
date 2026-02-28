@@ -168,14 +168,14 @@ export const api = {
   },
 
   getAgents: async (): Promise<{
-    nanobotImageVersion: string | null;
+    agentImageVersion: string | null;
     agents: Array<{
       id: string;
       name: string;
       status: string;
       packPath: string;
       model: string | null;
-      nanobotVersion?: string | null;
+      agentVersion?: string | null;
       containerId: string | null;
       token: string;
       tags: string[];
@@ -183,6 +183,16 @@ export const api = {
     }>;
   }> => {
     return api.get('/api/agents');
+  },
+
+  getAgentUsage: async (
+    id: string
+  ): Promise<{
+    totalTokens: number;
+    totalCost: number;
+    requests: number;
+  }> => {
+    return api.get(`/api/agents/${id}/usage`);
   },
 
   getAgent: async (
