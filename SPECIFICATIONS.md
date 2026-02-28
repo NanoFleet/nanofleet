@@ -66,6 +66,5 @@ Plugins are **independent Docker containers** exposing an MCP server. NanoFleet 
 
 | Plugin | Description |
 |--------|-------------|
-| [nanofleet-chat](https://github.com/NanoFleet/nanofleet-chat) | Multi-agent chat channels |
 | [nanofleet-tasks](https://github.com/NanoFleet/nanofleet-tasks) | Kanban task manager for human-agent collaboration |
 | [nanofleet-vault](https://github.com/NanoFleet/nanofleet-vault) | Secret manager with per-agent access control |
