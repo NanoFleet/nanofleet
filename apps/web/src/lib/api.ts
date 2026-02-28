@@ -252,7 +252,9 @@ export const api = {
     return api.post('/api/agents', data);
   },
 
-  getAgentChannels: async (agentId: string): Promise<{
+  getAgentChannels: async (
+    agentId: string
+  ): Promise<{
     channels: Array<{
       id: string;
       agentId: string;
@@ -275,9 +277,12 @@ export const api = {
   },
 
   deleteChannel: async (agentId: string, channelId: string): Promise<{ success: boolean }> => {
-    const response = await fetchWithAuth(`${API_BASE_URL}/api/agents/${agentId}/channels/${channelId}`, {
-      method: 'DELETE',
-    });
+    const response = await fetchWithAuth(
+      `${API_BASE_URL}/api/agents/${agentId}/channels/${channelId}`,
+      {
+        method: 'DELETE',
+      }
+    );
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Delete failed' }));
       throw new Error(error.error || 'Delete failed');

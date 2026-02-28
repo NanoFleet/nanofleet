@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Pause, Play, Plus, Radio, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pause,
+  Play,
+  Plus,
+  Radio,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -97,7 +106,9 @@ function ChannelsSection({ agentId }: { agentId: string }) {
             <span className="text-xs font-medium text-neutral-700">
               {CHANNEL_LABELS[ch.type] ?? ch.type}
             </span>
-            <span className={`ml-1.5 text-[10px] font-mono ${statusColor[ch.status] ?? 'text-neutral-400'}`}>
+            <span
+              className={`ml-1.5 text-[10px] font-mono ${statusColor[ch.status] ?? 'text-neutral-400'}`}
+            >
               {ch.status}
             </span>
           </div>

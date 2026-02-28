@@ -94,7 +94,9 @@ function AgentUsage({ agentId }: { agentId: string }) {
   return (
     <div className="flex items-center gap-2 text-[10px] text-neutral-400 font-mono ml-auto">
       {data && data.totalCost != null && (
-        <span>${data.totalCost.toFixed(4)} · {data.requests} req</span>
+        <span>
+          ${data.totalCost.toFixed(4)} · {data.requests} req
+        </span>
       )}
     </div>
   );
@@ -177,7 +179,14 @@ function ChannelBadge({ agentId }: { agentId: string }) {
       {open && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
         >
           <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
             <div className="flex items-center justify-between p-4 border-b">
@@ -198,10 +207,15 @@ function ChannelBadge({ agentId }: { agentId: string }) {
               {hasChannel ? (
                 <div className="space-y-3">
                   {channels.map((ch) => (
-                    <div key={ch.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-md border border-neutral-200">
+                    <div
+                      key={ch.id}
+                      className="flex items-center justify-between p-3 bg-neutral-50 rounded-md border border-neutral-200"
+                    >
                       <div>
                         <p className="text-sm font-medium capitalize">{ch.type}</p>
-                        <p className={`text-xs mt-0.5 ${ch.status === 'running' ? 'text-green-600' : 'text-red-500'}`}>
+                        <p
+                          className={`text-xs mt-0.5 ${ch.status === 'running' ? 'text-green-600' : 'text-red-500'}`}
+                        >
                           {ch.status}
                         </p>
                       </div>
@@ -219,12 +233,18 @@ function ChannelBadge({ agentId }: { agentId: string }) {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <p className="text-xs text-neutral-500 mb-3">Connect a Telegram bot to this agent.</p>
+                  <p className="text-xs text-neutral-500 mb-3">
+                    Connect a Telegram bot to this agent.
+                  </p>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    <label
+                      htmlFor="bot-token"
+                      className="block text-xs font-medium text-neutral-700 mb-1"
+                    >
                       Bot Token <span className="text-red-500">*</span>
                     </label>
                     <input
+                      id="bot-token"
                       type="password"
                       value={botToken}
                       onChange={(e) => setBotToken(e.target.value)}
@@ -233,10 +253,14 @@ function ChannelBadge({ agentId }: { agentId: string }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    <label
+                      htmlFor="allowed-users"
+                      className="block text-xs font-medium text-neutral-700 mb-1"
+                    >
                       Allowed Users <span className="text-neutral-400">(optional)</span>
                     </label>
                     <input
+                      id="allowed-users"
                       type="text"
                       value={allowedUsers}
                       onChange={(e) => setAllowedUsers(e.target.value)}
@@ -245,10 +269,14 @@ function ChannelBadge({ agentId }: { agentId: string }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-neutral-700 mb-1">
+                    <label
+                      htmlFor="notification-user-id"
+                      className="block text-xs font-medium text-neutral-700 mb-1"
+                    >
                       Notification User ID <span className="text-neutral-400">(optional)</span>
                     </label>
                     <input
+                      id="notification-user-id"
                       type="text"
                       value={notificationUserId}
                       onChange={(e) => setNotificationUserId(e.target.value)}

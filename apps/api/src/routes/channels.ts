@@ -130,11 +130,7 @@ channelRoutes.get('/:agentId/channels', requireAuth, async (c) => {
 channelRoutes.delete('/:agentId/channels/:channelId', requireAuth, async (c) => {
   const { agentId, channelId } = c.req.param();
 
-  const [channel] = await db
-    .select()
-    .from(channels)
-    .where(eq(channels.id, channelId))
-    .limit(1);
+  const [channel] = await db.select().from(channels).where(eq(channels.id, channelId)).limit(1);
 
   if (!channel || channel.agentId !== agentId) {
     return c.json({ error: 'Channel not found' }, 404);
