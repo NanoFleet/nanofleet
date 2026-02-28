@@ -117,7 +117,7 @@ channelRoutes.get('/:agentId/channels', requireAuth, async (c) => {
 
   const result = await Promise.all(
     agentChannels.map(async (ch) => {
-      let status = ch.status;
+      let status: 'running' | 'error' = 'error';
       try {
         const container = docker.getContainer(ch.containerName);
         const info = await container.inspect();
