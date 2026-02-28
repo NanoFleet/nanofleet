@@ -1,23 +1,24 @@
 # NanoFleet
 
-A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker containers, interact with them via a web dashboard, and extend them with plugins.
+Management layer for [nanofleet-agent](https://github.com/NanoFleet/nanofleet-agent) instances. Deploy and manage a fleet of AI agents from a single web dashboard, extend them with plugins, and connect them to external platforms via channels.
 
-> [!WARNING]  
+> [!WARNING]
 > The project is currently in beta and is therefore not ready for production use.
 
 <table>
   <tr>
-    <td><img width="2576" height="1750" alt="NanoFleet Dashboard" src="https://github.com/user-attachments/assets/e113c155-e33a-402b-9b51-664082383ad9" /></td>
-    <td><img width="2574" height="1750" alt="NanoFleet Agent Chat" src="https://github.com/user-attachments/assets/43718d6e-0b5d-4a4c-aee9-6ad5565c3df6" /></td>
+    <td><img width="2486" height="1694" alt="NanoFleet Agent" src="https://github.com/user-attachments/assets/517a9c18-7400-46f2-b44d-c404432adbc4" /></td>
+    <td><img width="2486" height="1694" alt="NanoFleet Dashboard" src="https://github.com/user-attachments/assets/3a0f68a2-91a5-4ac8-a4bf-8567bbbde37b" /></td>
   </tr>
 </table>
 
 ## Features
 
-- Deploy agents as isolated Docker containers (powered by [nanobot](https://github.com/HKUDS/nanobot))
+- Deploy [nanofleet-agent](https://github.com/NanoFleet/nanofleet-agent) instances as isolated Docker containers
 - Web dashboard to manage agents, monitor logs, and chat in real time
 - Plugin system — extend agents with MCP tools and custom UIs
-- Agent packs — portable zip files defining an agent's behavior, tools, and rules
+- Agent packs — portable zip files defining an agent's identity, tools, and rules
+- Channel management — connect agents to external platforms (Telegram, ...) directly from the UI
 
 ## Getting started
 

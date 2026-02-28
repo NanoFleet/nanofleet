@@ -62,6 +62,19 @@ export function initDb() {
   `);
 
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS channels (
+      id text PRIMARY KEY,
+      agent_id text NOT NULL,
+      type text NOT NULL,
+      image text NOT NULL,
+      container_name text NOT NULL,
+      status text DEFAULT 'running' NOT NULL,
+      env_vars text,
+      created_at integer NOT NULL
+    )
+  `);
+
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS api_keys (
       id text PRIMARY KEY,
       user_id text NOT NULL,

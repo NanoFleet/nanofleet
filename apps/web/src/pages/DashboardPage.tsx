@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowUp, Pause, Play, Plus, Tag, Trash2, Upload, X } from 'lucide-react';
+import { ArrowUp, Pause, Play, Plus, Radio, Tag, Trash2, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -83,7 +83,7 @@ function AgentMeta({ agentId }: { agentId: string }) {
   );
 }
 
-function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: string | null }) {
+function AgentUsage({ agentId }: { agentId: string }) {
   const { data } = useQuery({
     queryKey: ['agent-usage', agentId],
     queryFn: () => api.getAgentUsage(agentId),
@@ -93,13 +93,224 @@ function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: 
 
   return (
     <div className="flex items-center gap-2 text-[10px] text-neutral-400 font-mono ml-auto">
-      {agentVersion && <span>agent {agentVersion}</span>}
       {data && data.totalCost != null && (
-        <span className="ml-auto">
+        <span>
           ${data.totalCost.toFixed(4)} · {data.requests} req
         </span>
       )}
     </div>
+  );
+}
+
+function AgentVersion({ agentId }: { agentId: string }) {
+  const { data } = useQuery({
+    queryKey: ['agent-health', agentId],
+    queryFn: () => api.getAgentHealth(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  if (!data?.version) return null;
+  return <span className="text-[10px] text-neutral-400 font-mono">v{data.version}</span>;
+}
+
+function ChannelBadge({ agentId }: { agentId: string }) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [botToken, setBotToken] = useState('');
+  const [allowedUsers, setAllowedUsers] = useState('');
+  const [notificationUserId, setNotificationUserId] = useState('');
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['agent-channels', agentId],
+    queryFn: () => api.getAgentChannels(agentId),
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  const channels = data?.channels ?? [];
+  const hasChannel = channels.length > 0;
+
+  const deployMutation = useMutation({
+    mutationFn: () =>
+      api.deployChannel(agentId, {
+        type: 'telegram',
+        botToken,
+        allowedUsers: allowedUsers || undefined,
+        notificationUserId: notificationUserId || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-channels', agentId] });
+      toast.success('Channel deployed');
+      setOpen(false);
+      setBotToken('');
+      setAllowedUsers('');
+      setNotificationUserId('');
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Deploy failed');
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (channelId: string) => api.deleteChannel(agentId, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-channels', agentId] });
+      toast.success('Channel removed');
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
+    },
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={`p-1.5 rounded hover:bg-neutral-100 transition-colors ${hasChannel ? 'text-green-500 hover:text-green-700' : 'text-red-400 hover:text-red-600'}`}
+        title={hasChannel ? 'Channel configured' : 'No channel — click to configure'}
+      >
+        <Radio className="w-4 h-4" />
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setOpen(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <Radio className="w-4 h-4" />
+                Channel
+              </h2>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="p-1 hover:bg-neutral-100 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4">
+              {hasChannel ? (
+                <div className="space-y-3">
+                  {channels.map((ch) => (
+                    <div
+                      key={ch.id}
+                      className="flex items-center justify-between p-3 bg-neutral-50 rounded-md border border-neutral-200"
+                    >
+                      <div>
+                        <p className="text-sm font-medium capitalize">{ch.type}</p>
+                        <p
+                          className={`text-xs mt-0.5 ${ch.status === 'running' ? 'text-green-600' : 'text-red-500'}`}
+                        >
+                          {ch.status}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => deleteMutation.mutate(ch.id)}
+                        disabled={deleteMutation.isPending}
+                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        title="Remove channel"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-neutral-500 mb-3">
+                    Connect a Telegram bot to this agent.
+                  </p>
+                  <div>
+                    <label
+                      htmlFor="bot-token"
+                      className="block text-xs font-medium text-neutral-700 mb-1"
+                    >
+                      Bot Token <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="bot-token"
+                      type="password"
+                      value={botToken}
+                      onChange={(e) => setBotToken(e.target.value)}
+                      placeholder="123456:ABC..."
+                      className="w-full px-3 py-1.5 text-sm border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="allowed-users"
+                      className="block text-xs font-medium text-neutral-700 mb-1"
+                    >
+                      Allowed Users <span className="text-neutral-400">(optional)</span>
+                    </label>
+                    <input
+                      id="allowed-users"
+                      type="text"
+                      value={allowedUsers}
+                      onChange={(e) => setAllowedUsers(e.target.value)}
+                      placeholder="user1,user2"
+                      className="w-full px-3 py-1.5 text-sm border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="notification-user-id"
+                      className="block text-xs font-medium text-neutral-700 mb-1"
+                    >
+                      Notification User ID <span className="text-neutral-400">(optional)</span>
+                    </label>
+                    <input
+                      id="notification-user-id"
+                      type="text"
+                      value={notificationUserId}
+                      onChange={(e) => setNotificationUserId(e.target.value)}
+                      placeholder="123456789"
+                      className="w-full px-3 py-1.5 text-sm border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpen(false)}
+                      className="px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 rounded-md"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deployMutation.mutate()}
+                      disabled={!botToken.trim() || deployMutation.isPending}
+                      className="px-3 py-1.5 text-sm bg-neutral-900 text-white rounded-md hover:bg-neutral-800 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {deployMutation.isPending && (
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      )}
+                      Deploy
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -406,6 +617,7 @@ export function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <ChannelBadge agentId={agent.id} />
                   {agent.agentVersion &&
                     agentImageVersion &&
                     isOlderVersion(agent.agentVersion, agentImageVersion) && (
@@ -497,15 +709,18 @@ export function DashboardPage() {
 
               <div className="mt-2 flex items-center justify-between">
                 <AgentMeta agentId={agent.id} />
-                <AgentUsage agentId={agent.id} agentVersion={agent.agentVersion ?? null} />
+                <AgentUsage agentId={agent.id} />
               </div>
 
-              <Link
-                to={`/agents/${agent.id}`}
-                className="block mt-3 text-xs text-neutral-500 hover:text-neutral-700"
-              >
-                {t('agents.viewWorkspace')} →
-              </Link>
+              <div className="mt-3 flex items-center justify-between">
+                <Link
+                  to={`/agents/${agent.id}`}
+                  className="text-xs text-neutral-500 hover:text-neutral-700"
+                >
+                  {t('agents.viewWorkspace')} →
+                </Link>
+                <AgentVersion agentId={agent.id} />
+              </div>
             </div>
           ))}
         </div>

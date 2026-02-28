@@ -132,3 +132,31 @@ export const InstallPluginPayloadSchema = z.object({
 });
 
 export type InstallPluginPayload = z.infer<typeof InstallPluginPayloadSchema>;
+
+export const ChannelTypeEnum = z.enum(['telegram']);
+export type ChannelType = z.infer<typeof ChannelTypeEnum>;
+
+export const ChannelStatusEnum = z.enum(['running', 'stopped', 'error']);
+export type ChannelStatus = z.infer<typeof ChannelStatusEnum>;
+
+export const DeployChannelPayloadSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('telegram'),
+    botToken: z.string().min(1),
+    allowedUsers: z.string().optional(),
+    notificationUserId: z.string().optional(),
+  }),
+]);
+export type DeployChannelPayload = z.infer<typeof DeployChannelPayloadSchema>;
+
+export const ChannelSchema = z.object({
+  id: z.string(),
+  agentId: z.string(),
+  type: ChannelTypeEnum,
+  image: z.string(),
+  containerName: z.string(),
+  status: ChannelStatusEnum,
+  envVars: z.record(z.string()).nullable(),
+  createdAt: z.string(),
+});
+export type Channel = z.infer<typeof ChannelSchema>;

@@ -53,11 +53,18 @@ export async function verifyRefreshToken(token: string): Promise<jose.JWTPayload
 
 export function generateTempPassword(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const randomValues = crypto.getRandomValues(new Uint8Array(16));
-  const password = Array.from(randomValues)
-    .map((b) => chars[b % chars.length])
-    .join('');
-  return password;
+  const max = 256 - (256 % chars.length); // largest multiple of chars.length <= 256
+  const result: string[] = [];
+  while (result.length < 16) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    for (const b of bytes) {
+      if (b < max) {
+        result.push(chars[b % chars.length]);
+        if (result.length === 16) break;
+      }
+    }
+  }
+  return result.join('');
 }
 
 export function generateTotpSecret(): string {

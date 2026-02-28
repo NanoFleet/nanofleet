@@ -1,6 +1,16 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, PanelLeftClose, PanelLeftOpen, Pause, Play } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pause,
+  Play,
+  Plus,
+  Radio,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
@@ -18,6 +28,150 @@ interface Agent {
   containerId: string | null;
   token: string;
   createdAt: string;
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  telegram: 'Telegram',
+};
+
+function ChannelsSection({ agentId }: { agentId: string }) {
+  const queryClient = useQueryClient();
+  const [isAdding, setIsAdding] = useState(false);
+  const [botToken, setBotToken] = useState('');
+  const [allowedUsers, setAllowedUsers] = useState('');
+  const [notificationUserId, setNotificationUserId] = useState('');
+
+  const { data } = useQuery({
+    queryKey: ['agent-channels', agentId],
+    queryFn: () => api.getAgentChannels(agentId),
+    staleTime: 30_000,
+  });
+
+  const deployMutation = useMutation({
+    mutationFn: () =>
+      api.deployChannel(agentId, {
+        type: 'telegram',
+        botToken,
+        allowedUsers: allowedUsers || undefined,
+        notificationUserId: notificationUserId || undefined,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-channels', agentId] });
+      setIsAdding(false);
+      setBotToken('');
+      setAllowedUsers('');
+      setNotificationUserId('');
+      toast.success('Channel deployed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (channelId: string) => api.deleteChannel(agentId, channelId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['agent-channels', agentId] });
+      toast.success('Channel removed');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const statusColor: Record<string, string> = {
+    running: 'text-green-600',
+    stopped: 'text-neutral-400',
+    error: 'text-red-500',
+  };
+
+  return (
+    <div className="mt-4 border-t border-neutral-200 pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-neutral-500 uppercase tracking-wide flex items-center gap-1.5">
+          <Radio className="w-3 h-3" />
+          Channels
+        </span>
+        {!isAdding && (
+          <button
+            type="button"
+            onClick={() => setIsAdding(true)}
+            className="p-1 hover:bg-neutral-100 rounded text-neutral-400 hover:text-neutral-600"
+            title="Add channel"
+          >
+            <Plus className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {data?.channels.map((ch) => (
+        <div key={ch.id} className="flex items-center justify-between py-1 group">
+          <div>
+            <span className="text-xs font-medium text-neutral-700">
+              {CHANNEL_LABELS[ch.type] ?? ch.type}
+            </span>
+            <span
+              className={`ml-1.5 text-[10px] font-mono ${statusColor[ch.status] ?? 'text-neutral-400'}`}
+            >
+              {ch.status}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => deleteMutation.mutate(ch.id)}
+            className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded text-red-400"
+            title="Remove channel"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        </div>
+      ))}
+
+      {data?.channels.length === 0 && !isAdding && (
+        <p className="text-[11px] text-neutral-400">No channels configured.</p>
+      )}
+
+      {isAdding && (
+        <div className="mt-2 space-y-2">
+          <p className="text-xs font-medium text-neutral-600">Telegram</p>
+          <input
+            type="text"
+            placeholder="Bot token *"
+            value={botToken}
+            onChange={(e) => setBotToken(e.target.value)}
+            className="w-full px-2 py-1 text-xs border border-neutral-300 rounded focus:outline-none focus:ring-1 focus:ring-neutral-400"
+          />
+          <input
+            type="text"
+            placeholder="Allowed user IDs (optional)"
+            value={allowedUsers}
+            onChange={(e) => setAllowedUsers(e.target.value)}
+            className="w-full px-2 py-1 text-xs border border-neutral-300 rounded focus:outline-none focus:ring-1 focus:ring-neutral-400"
+          />
+          <input
+            type="text"
+            placeholder="Notification user ID (optional)"
+            value={notificationUserId}
+            onChange={(e) => setNotificationUserId(e.target.value)}
+            className="w-full px-2 py-1 text-xs border border-neutral-300 rounded focus:outline-none focus:ring-1 focus:ring-neutral-400"
+          />
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => deployMutation.mutate()}
+              disabled={!botToken || deployMutation.isPending}
+              className="flex-1 px-2 py-1 text-xs bg-neutral-900 text-white rounded hover:bg-neutral-700 disabled:opacity-50"
+            >
+              {deployMutation.isPending ? 'Deploying…' : 'Deploy'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAdding(false)}
+              className="px-2 py-1 text-xs border border-neutral-200 rounded hover:bg-neutral-100"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function AgentPage() {
@@ -135,7 +289,7 @@ export function AgentPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel — File Explorer */}
         {sidebarOpen && (
-          <div className="w-64 border-r border-neutral-200 p-3 flex flex-col overflow-hidden">
+          <div className="w-64 border-r border-neutral-200 p-3 flex flex-col overflow-y-auto">
             <AgentFileExplorer
               agentId={agent.id}
               selectedFile={selectedFile}
@@ -144,6 +298,7 @@ export function AgentPage() {
                 if (selectedFile === f) setSelectedFile(null);
               }}
             />
+            <ChannelsSection agentId={agent.id} />
           </div>
         )}
 

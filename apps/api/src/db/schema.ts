@@ -59,6 +59,21 @@ export const agentPlugins = sqliteTable('agent_plugins', {
   pluginId: text('plugin_id').notNull(),
 });
 
+export const channels = sqliteTable('channels', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id').notNull(),
+  type: text('type').notNull(), // e.g. 'telegram'
+  image: text('image').notNull(),
+  containerName: text('container_name').notNull(),
+  status: text('status', { enum: ['running', 'stopped', 'error'] })
+    .notNull()
+    .default('running'),
+  envVars: text('env_vars'), // JSON: non-sensitive env vars for display
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const apiKeys = sqliteTable('api_keys', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull(),
