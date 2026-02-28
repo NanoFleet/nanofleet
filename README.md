@@ -7,8 +7,8 @@ Management layer for [nanofleet-agent](https://github.com/NanoFleet/nanofleet-ag
 
 <table>
   <tr>
-    <td><img width="2576" height="1750" alt="NanoFleet Dashboard" src="https://github.com/user-attachments/assets/e113c155-e33a-402b-9b51-664082383ad9" /></td>
-    <td><img width="2574" height="1750" alt="NanoFleet Agent Chat" src="https://github.com/user-attachments/assets/43718d6e-0b5d-4a4c-aee9-6ad5565c3df6" /></td>
+    <td><img width="2486" height="1694" alt="NanoFleet Agent" src="https://github.com/user-attachments/assets/517a9c18-7400-46f2-b44d-c404432adbc4" /></td>
+    <td><img width="2486" height="1694" alt="NanoFleet Dashboard" src="https://github.com/user-attachments/assets/3a0f68a2-91a5-4ac8-a4bf-8567bbbde37b" /></td>
   </tr>
 </table>
 
