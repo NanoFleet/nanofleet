@@ -1,68 +1,34 @@
-import { resolve } from 'node:path';
 import Dockerode from 'dockerode';
 
 const docker = new Dockerode();
-const IMAGE_NAME = 'nanofleet-nanobot:latest';
+const IMAGE_NAME = 'nanofleet-agent:latest';
 
-async function buildNanobotImage(): Promise<void> {
-  const context = resolve(import.meta.dir, '.');
-  await new Promise<void>((resolve, reject) => {
-    docker.buildImage(
-      {
-        context: context,
-        src: ['Dockerfile', 'entrypoint.sh', 'nanofleet_channel.py'],
-      },
-      { t: IMAGE_NAME },
-      (err: Error | null, stream: NodeJS.ReadableStream | undefined) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        if (!stream) {
-          resolve();
-          return;
-        }
-        docker.modem.followProgress(
-          stream,
-          (err: Error | null) => {
-            if (err) reject(err);
-            else resolve();
-          },
-          (event: { stream?: string; error?: string }) => {
-            if (event.stream) process.stdout.write(event.stream);
-          }
-        );
-      }
-    );
-  });
-}
-
-export async function getNanobotVersion(): Promise<string | null> {
+export async function getAgentImageVersion(): Promise<string | null> {
   try {
     const image = docker.getImage(IMAGE_NAME);
     const info = await image.inspect();
-    return (info.Config?.Labels?.['nanobot_version'] as string | undefined) ?? null;
+    return (info.Config?.Labels?.['agent_version'] as string | undefined) ?? null;
   } catch {
     return null;
   }
 }
 
-export async function ensureNanobotImage(): Promise<string | null> {
+export async function ensureAgentImage(): Promise<string | null> {
   try {
     const images = await docker.listImages();
     const exists = images.some((img) => img.RepoTags?.includes(IMAGE_NAME) ?? false);
 
     if (exists) {
-      console.log(`[Docker] Image '${IMAGE_NAME}' already exists`);
+      console.log(`[Docker] Image '${IMAGE_NAME}' found`);
     } else {
-      console.log(`[Docker] Building image '${IMAGE_NAME}'...`);
-      await buildNanobotImage();
-      console.log(`[Docker] Image '${IMAGE_NAME}' built successfully`);
+      throw new Error(
+        `[Docker] Image '${IMAGE_NAME}' not found. Please build nanofleet-agent first.`
+      );
     }
 
-    return await getNanobotVersion();
+    return await getAgentImageVersion();
   } catch (error) {
-    console.error('[Docker] Failed to ensure Nanobot image:', error);
+    console.error('[Docker] Failed to ensure agent image:', error);
     throw error;
   }
 }
