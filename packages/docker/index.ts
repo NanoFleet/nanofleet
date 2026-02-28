@@ -1,7 +1,7 @@
 import Dockerode from 'dockerode';
 
 const docker = new Dockerode();
-const IMAGE_NAME = 'nanofleet-agent:latest';
+const IMAGE_NAME = 'ghcr.io/nanofleet/nanofleet-agent:latest';
 
 export async function getAgentImageVersion(): Promise<string | null> {
   try {

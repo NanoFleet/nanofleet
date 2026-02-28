@@ -168,7 +168,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
   });
 
   const container = await docker.createContainer({
-    Image: 'nanofleet-agent:latest',
+    Image: 'ghcr.io/nanofleet/nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
     Env: [
       `AGENT_MODEL=${model}`,
@@ -380,7 +380,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
   ];
 
   const container = await docker.createContainer({
-    Image: 'nanofleet-agent:latest',
+    Image: 'ghcr.io/nanofleet/nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
     Env: envVars,
     HostConfig: {
