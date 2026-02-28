@@ -1,4 +1,4 @@
-import { Info, Key, Lock, Save, Trash2, User } from 'lucide-react';
+import { Key, Lock, Save, Trash2, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -25,11 +25,6 @@ const PRESET_SLOTS: PresetSlot[] = [
   { name: 'anthropic', placeholder: 'sk-ant-...' },
   { name: 'openai', placeholder: 'sk-...' },
   { name: 'gemini', placeholder: 'AIza...' },
-  {
-    name: 'brave',
-    placeholder: 'BSA...',
-    tooltip: 'Required for web search in agents that have webSearch enabled in their manifest.',
-  },
 ];
 
 export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
