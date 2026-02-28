@@ -65,7 +65,7 @@ Steps:
 4. API connects to `http://{containerName}:{manifest.mcpPort}/mcp` and calls `tools/list`
 5. API registers all tools in the in-memory registry + DB
 6. Plugin record saved to DB with `status: "running"`
-7. **All existing agents are auto-linked** (`agent_plugins` rows inserted) and restarted (fire-and-forget) so their `.mcp.json` and `TOOLS.md` are updated
+7. **All existing agents are auto-linked** (`agent_plugins` rows inserted) and restarted (fire-and-forget) so their `.mcp.json` is updated
 
 ### 3.2 Tool Registration (in-memory registry)
 
@@ -75,7 +75,7 @@ interface PluginRegistryEntry {
   containerName: string;
   mcpPort: number;
   tools: string[];          // e.g. ["send_message_to_channel", "list_agents"]
-  toolsDoc: string | null;  // markdown doc injected into agent TOOLS.md
+  toolsDoc: string | null;  // markdown doc for this plugin's tools (stored in DB)
 }
 
 // Map: pluginName → registry entry
@@ -91,11 +91,11 @@ DELETE /api/plugins/:id
 ```
 
 Steps:
-1. Remove plugin from the in-memory registry (so it is excluded from the next TOOLS.md generation)
+1. Remove plugin from the in-memory registry
 2. `container.stop()` + `container.remove()`
 3. Delete `agent_plugins` rows (cascade)
 4. Delete plugin row from DB
-5. **All affected agents are restarted** (fire-and-forget) so their `.mcp.json` and `TOOLS.md` no longer reference the deleted plugin
+5. **All affected agents are restarted** (fire-and-forget) so their `.mcp.json` no longer references the deleted plugin
 
 ---
 
@@ -125,25 +125,7 @@ The agent discovers tools automatically via `tools/list` at startup.
 
 ---
 
-## 5. TOOLS.md — Dynamic Tool Documentation
-
-Every time an agent's config is regenerated (`generateAgentConfig`), a `TOOLS.md` is written to the agent workspace. Content is built by concatenating the `toolsDoc` field from every active plugin in the registry:
-
-```markdown
-# Available Tools
-
-## nanofleet-chat — Multi-agent chat
-
-You have access to a shared chat system...
-```
-
-If no plugins are installed: `No plugins are currently installed. You have no external tools available.`
-
-TOOLS.md is always in sync — adding or removing a plugin triggers agent restarts that rewrite the file automatically. No manual maintenance required.
-
----
-
-## 6. SDUI — Sidebar Slots + iframe Frontend
+## 5. SDUI — Sidebar Slots + iframe Frontend
 
 A plugin can declare a **sidebar slot** to inject a navigation entry into the Dashboard:
 
@@ -163,7 +145,7 @@ The plugin is fully responsible for its own UI — NanoFleet only provides the i
 
 ---
 
-## 7. Database Schema
+## 6. Database Schema
 
 ### `plugins` table
 
@@ -179,7 +161,7 @@ The plugin is fully responsible for its own UI — NanoFleet only provides the i
 | `status` | TEXT | `running`, `stopped`, `error` |
 | `manifestUrl` | TEXT | Source URL of the manifest |
 | `sidebarSlot` | TEXT (JSON) | Serialized sidebar declaration, or NULL |
-| `toolsDoc` | TEXT | Markdown injected into agent TOOLS.md, or NULL |
+| `toolsDoc` | TEXT | Markdown documentation for the plugin's tools, or NULL |
 | `createdAt` | INTEGER | Unix timestamp |
 
 ### `agent_plugins` table

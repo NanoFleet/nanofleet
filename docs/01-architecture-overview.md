@@ -45,7 +45,7 @@ NanoFleet is built as a **TypeScript Monorepo** managed by Bun Workspaces and Tu
 
 1. **User Action:** The user clicks "Deploy Agent" on the Web Dashboard.
 2. **API Request:** A REST request is sent to the Hono API (`POST /api/agents`).
-3. **Workspace Setup:** The API creates the agent workspace under `~/.nanofleet/agents/{agentId}/`, copies pack files (`SOUL.md`, `TOOLS.md`, `skills/`), and generates `.mcp.json` with MCP endpoints for all linked plugins.
+3. **Workspace Setup:** The API creates the agent workspace under `~/.nanofleet/agents/{agentId}/`, copies pack files (`SOUL.md`, `skills/`), and generates `.mcp.json` with MCP endpoints for all linked plugins.
 4. **Docker Orchestration:** The API uses the Docker SDK to spin up a new `nanofleet-agent` container, bind-mounting the workspace and injecting the model/API key as env vars.
 5. **Real-Time Feedback:** The API attaches to the container's `stdout`/`stderr` and broadcasts log chunks to the Web Dashboard via WebSocket.
 6. **Execution:** The agent reads its workspace files, performs tasks using the Mastra framework, and uses MCP to call plugin tools.

@@ -24,7 +24,7 @@ A plugin is installed by providing a URL to its `plugin-manifest.json`. The key 
 | `image` | string | yes | Docker image to pull and run |
 | `mcpPort` | number | yes | Port where the MCP server listens |
 | `uiPort` | number | no | Port for the plugin's web UI (proxied via `/api/plugins/:name/ui/*`) |
-| `toolsDoc` | string | no | Markdown documentation injected into the agent's `TOOLS.md` |
+| `toolsDoc` | string | no | Markdown documentation for the plugin's tools (stored in DB, displayed in the Dashboard) |
 | `generateEnvVars` | string[] | no | Auto-generated env vars (random tokens) injected into the container |
 | `mountShared` | boolean | no | If true, mounts `~/.nanofleet/shared` at `/shared` in the container |
 | `replacesNativeFeatures` | string[] | no | Native Dashboard features this plugin replaces |

@@ -12,8 +12,7 @@ A valid Agent Pack must follow a strict "File-First" architecture:
 /my-agent-pack
 ├── manifest.json     # Metadata (Name, version, author, required env vars like OPENAI_API_KEY)
 ├── SOUL.md           # The core prompt: Persona, constraints, and professional tone
-├── TOOLS.md          # Instructions on how the agent should use its available MCP tools
-└── /skills           # (Optional) Directory containing custom Python scripts specific to this agent
+└── /skills           # (Optional) Directory containing custom skill scripts specific to this agent
 ```
 
 ## 3. manifest.json Fields

@@ -50,7 +50,7 @@ POST /api/plugins/install
 | `sidebar.icon` | string | ✅ (if sidebar) | Lucide React icon name (e.g. `"MessageSquare"`, `"Calendar"`, `"Kanban"`). |
 | `sidebar.label` | string | ✅ (if sidebar) | Navigation label shown in the sidebar. |
 | `sidebar.route` | string | ✅ (if sidebar) | Frontend route path. Convention: `/plugins/{name}/ui`. Must be unique across installed plugins. |
-| `toolsDoc` | string | ❌ | Markdown documentation for the plugin's tools, injected into each agent's `TOOLS.md` file. Updated automatically on every agent restart. |
+| `toolsDoc` | string | ❌ | Markdown documentation for the plugin's tools (stored in DB, displayed in the Dashboard). |
 
 ---
 

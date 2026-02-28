@@ -19,7 +19,7 @@ To ensure security and proper communication, the orchestrator manages specific D
 All workspace directories live under `~/.nanofleet/` on the host and are bind-mounted into containers.
 
 * **Per-agent workspace:** `~/.nanofleet/agents/{agentId}/` → mounted at `/workspace` inside the agent container.
-  * Contains `SOUL.md`, `TOOLS.md`, `.mcp.json`, `skills/`, and any files the agent produces.
+  * Contains `SOUL.md`, `.mcp.json`, `skills/`, and any files the agent produces.
   * Only the owning agent's container has this mount.
 * **Shared workspace:** `~/.nanofleet/shared/` → mounted at `/shared` in every agent container.
   * Used to exchange artifacts between agents.
@@ -29,7 +29,7 @@ All workspace directories live under `~/.nanofleet/` on the host and are bind-mo
 
 ### 3.1 Spawning an Agent (Deployment)
 1. **Payload Reception:** The user requests to deploy an Agent Pack via `POST /api/agents`.
-2. **Workspace Setup:** The API copies pack files (`SOUL.md`, `TOOLS.md`, `skills/`) to `~/.nanofleet/agents/{agentId}/` and generates `.mcp.json` containing MCP endpoint URLs for all linked plugins.
+2. **Workspace Setup:** The API copies pack files (`SOUL.md`, `skills/`) to `~/.nanofleet/agents/{agentId}/` and generates `.mcp.json` containing MCP endpoint URLs for all linked plugins.
 3. **Container Creation:** The orchestrator calls `docker.createContainer()`.
    * **Image:** `ghcr.io/nanofleet/nanofleet-agent:latest`
    * **Name:** `nanofleet-agent-{agentId}`
