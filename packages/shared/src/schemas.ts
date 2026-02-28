@@ -14,7 +14,7 @@ export type User = z.infer<typeof UserSchema>;
 export const LoginPayloadSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
-  totp: z.string().length(6),
+  totp: z.string().length(6).optional(),
 });
 
 export type LoginPayload = z.infer<typeof LoginPayloadSchema>;
@@ -95,8 +95,8 @@ export const PluginManifestSchema = z.object({
   description: z.string().optional(),
   author: z.string().optional(),
   image: z.string().min(1),
-  mcpPort: z.number().int().min(1024).max(65535),
-  uiPort: z.number().int().min(1024).max(65535).optional(),
+  mcpPort: z.number().int().min(1024).max(65535).describe('Non-privileged port (1024-65535) for the MCP server'),
+  uiPort: z.number().int().min(1024).max(65535).optional().describe('Optional non-privileged port (1024-65535) for the plugin UI'),
   requiredEnvVars: z.array(z.string()).optional().default([]),
   sidebar: PluginSidebarSlotSchema.optional(),
   toolsDoc: z.string().optional(),

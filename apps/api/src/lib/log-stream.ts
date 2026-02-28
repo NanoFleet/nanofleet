@@ -15,7 +15,6 @@ function parseDockerStream(chunk: Buffer): string[] {
     if (offset + 8 > chunk.length) break;
 
     const header = chunk.slice(offset, offset + 8);
-    const streamType = header[0];
     const size = header.readUInt32BE(4);
 
     if (size === 0 || offset + 8 + size > chunk.length) break;

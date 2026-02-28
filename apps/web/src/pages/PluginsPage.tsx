@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   CheckSquare,
   KeyRound,
-  MessageSquare,
   Plug,
   Plus,
   RefreshCw,

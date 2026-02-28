@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 
 import { db } from '../db';
 import { apiKeys } from '../db/schema';
-import { decrypt, encrypt } from '../lib/crypto';
+import { encrypt } from '../lib/crypto';
 import { requireAuth } from '../middleware/auth';
 import type { AuthContext } from '../middleware/auth';
 

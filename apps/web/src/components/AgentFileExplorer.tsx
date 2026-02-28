@@ -25,7 +25,7 @@ function buildTree(files: { name: string; size: number }[]): TreeNode[] {
   const root: TreeNode[] = [];
 
   for (const file of files) {
-    const parts = (file.name as string).split('/');
+    const parts = file.name.split('/');
     let current = root;
 
     for (let i = 0; i < parts.length; i++) {
@@ -36,7 +36,7 @@ function buildTree(files: { name: string; size: number }[]): TreeNode[] {
       let node = current.find((n) => n.name === part);
       if (!node) {
         const newNode: TreeNode = {
-          name: part as string,
+          name: part,
           path,
           type: isFile ? 'file' : 'dir',
           children: [],
