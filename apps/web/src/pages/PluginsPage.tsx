@@ -44,12 +44,6 @@ interface OfficialPlugin {
 
 const OFFICIAL_PLUGINS: OfficialPlugin[] = [
   {
-    name: 'nanofleet-chat',
-    description: 'Multi-agent chat channels for NanoFleet',
-    icon: MessageSquare,
-    manifestUrl: 'https://raw.githubusercontent.com/NanoFleet/nanofleet-chat/main/manifest.json',
-  },
-  {
     name: 'nanofleet-tasks',
     description: 'Kanban task manager for human-agent collaboration',
     icon: CheckSquare,

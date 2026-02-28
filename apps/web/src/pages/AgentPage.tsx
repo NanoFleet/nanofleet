@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
 
-import { AgentChat } from '../components/AgentChat';
 import { AgentFileEditor } from '../components/AgentFileEditor';
 import { AgentFileExplorer } from '../components/AgentFileExplorer';
 import { useLoadingOverlay } from '../components/LoadingOverlay';
@@ -34,16 +33,6 @@ export function AgentPage() {
     queryFn: () => (id ? api.getAgent(id) : Promise.reject(new Error('No ID'))),
     enabled: !!id,
   });
-
-  const { data: pluginsData } = useQuery({
-    queryKey: ['plugins'],
-    queryFn: () => api.getPlugins(),
-    staleTime: 30_000,
-  });
-
-  const nativeChatReplaced = (pluginsData?.plugins ?? []).some(
-    (p) => p.status === 'running' && p.replacesNativeFeatures?.includes('agent-chat')
-  );
 
   const { subscribe, unsubscribe } = useWebSocket({
     onStatusChange: (agentId) => {
@@ -183,12 +172,10 @@ export function AgentPage() {
                 filename={selectedFile}
                 onClose={() => setSelectedFile(null)}
               />
-            ) : nativeChatReplaced ? (
-              <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
-                {t('agents.chatReplacedByPlugin')}
-              </div>
             ) : (
-              <AgentChat agentId={agent.id} />
+              <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
+                {t('agents.selectFile')}
+              </div>
             )}
           </div>
         </div>

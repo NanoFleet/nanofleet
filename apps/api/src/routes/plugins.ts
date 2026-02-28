@@ -5,8 +5,8 @@ import { docker } from '@nanofleet/docker';
 import { InstallPluginPayloadSchema, PluginManifestSchema } from '@nanofleet/shared';
 import { db } from '../db';
 import { agentPlugins, agents, plugins } from '../db/schema';
+import { SHARED_HOST_DIR } from '../lib/agent-config';
 import { rebuildAndRestartAgent } from '../lib/agent-lifecycle';
-import { SHARED_HOST_DIR } from '../lib/nanobot-config';
 import { requireAuth } from '../middleware/auth';
 
 export const pluginRoutes = new Hono();

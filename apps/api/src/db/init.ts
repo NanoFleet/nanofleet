@@ -25,7 +25,7 @@ export function initDb() {
       status text DEFAULT 'starting' NOT NULL,
       pack_path text NOT NULL,
       model text,
-      nanobot_version text,
+      agent_version text,
       container_id text,
       token text NOT NULL,
       tags text,
@@ -58,16 +58,6 @@ export function initDb() {
       agent_id text NOT NULL,
       plugin_id text NOT NULL,
       PRIMARY KEY (agent_id, plugin_id)
-    )
-  `);
-
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id text PRIMARY KEY,
-      agent_id text NOT NULL,
-      role text NOT NULL,
-      content text NOT NULL,
-      created_at integer NOT NULL
     )
   `);
 

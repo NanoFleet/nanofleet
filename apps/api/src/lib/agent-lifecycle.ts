@@ -1,19 +1,15 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { eq } from 'drizzle-orm';
 
 import { docker } from '@nanofleet/docker';
-import { AgentPackManifestSchema } from '@nanofleet/shared';
 import { db } from '../db';
-import { agentPlugins, agents, apiKeys, plugins } from '../db/schema';
+import { agentPlugins, agents, plugins } from '../db/schema';
 import { pluginRegistry } from '../routes/plugins';
-import { decrypt } from './crypto';
+import { type McpServerEntry, setupAgentWorkspace } from './agent-config';
 import { attachToContainerLogs } from './log-stream';
-import { type McpServerEntry, generateAgentConfig, resolveProvider } from './nanobot-config';
 import { broadcastAgentStatus, broadcastToAgent } from './ws-manager';
 
 // ---------------------------------------------------------------------------
-// Rebuild config and restart an agent container with its current plugins.
+// Rebuild .mcp.json and restart an agent container with its current plugins.
 // Called when a plugin is installed/removed or manually linked/unlinked.
 // ---------------------------------------------------------------------------
 
@@ -41,46 +37,14 @@ export async function rebuildAndRestartAgent(agentId: string): Promise<void> {
     })
     .filter((e): e is McpServerEntry => e !== null);
 
-  // Use model from DB if set (user override), otherwise fall back to pack manifest
-  const manifestPath = resolve(agent.packPath, 'manifest.json');
-  const manifestContent = await readFile(manifestPath, 'utf-8');
-  const manifest = AgentPackManifestSchema.parse(JSON.parse(manifestContent));
-  const model = agent.model ?? manifest.model;
-
-  // Resolve provider key with routing fallback (openrouter, vllm, etc.)
-  const { providerName, apiKey } = await resolveProvider(model, async (name) => {
-    const [keyRecord] = await db.select().from(apiKeys).where(eq(apiKeys.keyName, name)).limit(1);
-    return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
-  });
-
-  const providerKeys: Record<string, string> = { [providerName]: apiKey };
-
-  // Read Brave Search key if the pack requests web search
-  let braveApiKey: string | undefined;
-  if (manifest.webSearch) {
-    const [braveRecord] = await db
-      .select()
-      .from(apiKeys)
-      .where(eq(apiKeys.keyName, 'brave'))
-      .limit(1);
-    if (braveRecord) {
-      braveApiKey = decrypt(braveRecord.encryptedValue);
-    }
-  }
-
-  // Regenerate config.json (does NOT overwrite SOUL.md/TOOLS.md if already present)
-  await generateAgentConfig({
+  // Regenerate .mcp.json (does NOT overwrite SOUL.md/skills if already present)
+  await setupAgentWorkspace({
     agentId,
-    model,
-    providerKeys,
-    resolvedProviderName: providerName,
     packPath: agent.packPath,
     mcpServers,
-    webSearch: manifest.webSearch && !!braveApiKey,
-    braveApiKey,
   });
 
-  // Stop + start the container to pick up new config
+  // Stop + start the container to pick up new .mcp.json
   const container = docker.getContainer(agent.containerId);
   try {
     await container.stop();

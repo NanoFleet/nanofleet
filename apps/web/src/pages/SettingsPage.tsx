@@ -1,4 +1,4 @@
-import { Info, Key, Lock, Save, Trash2, User } from 'lucide-react';
+import { Key, Lock, Save, Trash2, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -18,18 +18,12 @@ interface SettingsPageProps {
 interface PresetSlot {
   name: string;
   placeholder: string;
-  tooltip?: string;
 }
 
 const PRESET_SLOTS: PresetSlot[] = [
   { name: 'anthropic', placeholder: 'sk-ant-...' },
   { name: 'openai', placeholder: 'sk-...' },
   { name: 'gemini', placeholder: 'AIza...' },
-  {
-    name: 'brave',
-    placeholder: 'BSA...',
-    tooltip: 'Required for web search in agents that have webSearch enabled in their manifest.',
-  },
 ];
 
 export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
@@ -260,14 +254,6 @@ export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
                       <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">
                         {t('settings.configured')}
                       </span>
-                    )}
-                    {slot.tooltip && (
-                      <div className="group relative ml-0.5">
-                        <Info className="w-3 h-3 text-neutral-400 cursor-help" />
-                        <div className="absolute left-0 bottom-full mb-1.5 w-56 bg-neutral-800 text-white text-xs rounded px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                          {slot.tooltip}
-                        </div>
-                      </div>
                     )}
                   </div>
                   <div className="flex gap-2">

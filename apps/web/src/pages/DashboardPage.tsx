@@ -15,7 +15,7 @@ interface Agent {
   status: string;
   packPath: string;
   model: string | null;
-  nanobotVersion?: string | null;
+  agentVersion?: string | null;
   containerId: string | null;
   token: string;
   tags: string[];
@@ -44,6 +44,64 @@ const statusColors: Record<string, string> = {
   starting: 'bg-amber-100 text-amber-800',
   stopped: 'bg-red-100 text-red-800',
 };
+
+function AgentMeta({ agentId }: { agentId: string }) {
+  const { data: identity } = useQuery({
+    queryKey: ['agent-identity', agentId],
+    queryFn: () => api.getAgentIdentity(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const { data: skillsData } = useQuery({
+    queryKey: ['agent-skills', agentId],
+    queryFn: () => api.getAgentSkills(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  if (!identity && !skillsData) return null;
+
+  const skillCount = skillsData?.skills?.filter((s) => s.available).length ?? 0;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {identity &&
+        (['hasSoul', 'hasMemory', 'hasStyle', 'hasAgents'] as const).map((key) => (
+          <span
+            key={key}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${identity[key] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
+          >
+            {key.replace('has', '').toLowerCase()}
+          </span>
+        ))}
+      {skillsData && (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-neutral-100 text-neutral-500">
+          {skillCount} skill{skillCount !== 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: string | null }) {
+  const { data } = useQuery({
+    queryKey: ['agent-usage', agentId],
+    queryFn: () => api.getAgentUsage(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  return (
+    <div className="flex items-center gap-2 text-[10px] text-neutral-400 font-mono ml-auto">
+      {agentVersion && <span>agent {agentVersion}</span>}
+      {data && data.totalCost != null && (
+        <span className="ml-auto">
+          ${data.totalCost.toFixed(4)} · {data.requests} req
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -251,7 +309,7 @@ export function DashboardPage() {
     }
   };
 
-  const nanobotImageVersion = data?.nanobotImageVersion ?? null;
+  const agentImageVersion = data?.agentImageVersion ?? null;
   const agents: Agent[] = (data?.agents || []).map((a) => ({ ...a, tags: a.tags ?? [] }));
 
   if (isLoading) {
@@ -348,15 +406,15 @@ export function DashboardPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  {agent.nanobotVersion &&
-                    nanobotImageVersion &&
-                    isOlderVersion(agent.nanobotVersion, nanobotImageVersion) && (
+                  {agent.agentVersion &&
+                    agentImageVersion &&
+                    isOlderVersion(agent.agentVersion, agentImageVersion) && (
                       <button
                         type="button"
                         onClick={() => upgradeMutation.mutate(agent.id)}
                         disabled={upgradeMutation.isPending}
                         className="p-1.5 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded"
-                        title={`Update available: ${nanobotImageVersion}`}
+                        title={`Update available: ${agentImageVersion}`}
                       >
                         <ArrowUp className="w-4 h-4" />
                       </button>
@@ -437,11 +495,10 @@ export function DashboardPage() {
                 )}
               </div>
 
-              {agent.nanobotVersion && (
-                <p className="mt-2 text-[10px] text-neutral-400 font-mono">
-                  nanobot {agent.nanobotVersion}
-                </p>
-              )}
+              <div className="mt-2 flex items-center justify-between">
+                <AgentMeta agentId={agent.id} />
+                <AgentUsage agentId={agent.id} agentVersion={agent.agentVersion ?? null} />
+              </div>
 
               <Link
                 to={`/agents/${agent.id}`}

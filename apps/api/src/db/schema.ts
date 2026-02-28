@@ -23,7 +23,7 @@ export const agents = sqliteTable('agents', {
     .default('starting'),
   packPath: text('pack_path').notNull(),
   model: text('model'),
-  nanobotVersion: text('nanobot_version'),
+  agentVersion: text('agent_version'),
   containerId: text('container_id'),
   token: text('token').notNull(),
   tags: text('tags'),
@@ -57,16 +57,6 @@ export const plugins = sqliteTable('plugins', {
 export const agentPlugins = sqliteTable('agent_plugins', {
   agentId: text('agent_id').notNull(),
   pluginId: text('plugin_id').notNull(),
-});
-
-export const messages = sqliteTable('messages', {
-  id: text('id').primaryKey(),
-  agentId: text('agent_id').notNull(),
-  role: text('role', { enum: ['user', 'agent'] }).notNull(),
-  content: text('content').notNull(),
-  createdAt: integer('created_at', { mode: 'timestamp' })
-    .notNull()
-    .$defaultFn(() => new Date()),
 });
 
 export const apiKeys = sqliteTable('api_keys', {

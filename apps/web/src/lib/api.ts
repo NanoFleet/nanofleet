@@ -168,14 +168,14 @@ export const api = {
   },
 
   getAgents: async (): Promise<{
-    nanobotImageVersion: string | null;
+    agentImageVersion: string | null;
     agents: Array<{
       id: string;
       name: string;
       status: string;
       packPath: string;
       model: string | null;
-      nanobotVersion?: string | null;
+      agentVersion?: string | null;
       containerId: string | null;
       token: string;
       tags: string[];
@@ -183,6 +183,35 @@ export const api = {
     }>;
   }> => {
     return api.get('/api/agents');
+  },
+
+  getAgentUsage: async (
+    id: string
+  ): Promise<{
+    totalTokens: number;
+    totalCost: number;
+    requests: number;
+  }> => {
+    return api.get(`/api/agents/${id}/usage`);
+  },
+
+  getAgentIdentity: async (
+    id: string
+  ): Promise<{
+    hasSoul: boolean;
+    hasStyle: boolean;
+    hasMemory: boolean;
+    hasAgents: boolean;
+  }> => {
+    return api.get(`/api/agents/${id}/identity`);
+  },
+
+  getAgentSkills: async (
+    id: string
+  ): Promise<{
+    skills: { id: string; name: string; available: boolean }[];
+  }> => {
+    return api.get(`/api/agents/${id}/skills`);
   },
 
   getAgent: async (
@@ -249,24 +278,6 @@ export const api = {
       throw new Error(error.error || 'Save failed');
     }
     return response.json();
-  },
-
-  getAgentMessages: async (
-    id: string
-  ): Promise<{
-    messages: Array<{
-      id: string;
-      agentId: string;
-      role: 'user' | 'agent';
-      content: string;
-      createdAt: string;
-    }>;
-  }> => {
-    return api.get(`/api/agents/${id}/messages`);
-  },
-
-  sendAgentMessage: async (id: string, content: string): Promise<{ success: boolean }> => {
-    return api.post(`/api/agents/${id}/messages`, { content });
   },
 
   listAgentFiles: async (id: string): Promise<{ files: Array<{ name: string; size: number }> }> => {
