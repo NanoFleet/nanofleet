@@ -10,12 +10,7 @@ import { initDb } from './db/init';
 import { agents, plugins } from './db/schema';
 import { checkEncryptionKey } from './lib/crypto';
 import { initDockerInfrastructure } from './lib/docker';
-import {
-  ensureInstancesDir,
-  ensureSharedDir,
-  ensureSharedWorkspaceDir,
-} from './lib/nanobot-config';
-import { ensureDefaultPack } from './lib/packs';
+import { ensureSharedDir, ensureSharedWorkspaceDir } from './lib/agent-config';
 import { subscribeToAgent, unsubscribeFromAgent } from './lib/ws-manager';
 import { requireAuth } from './middleware/auth';
 import { wsAuthMiddleware } from './middleware/websocket';
@@ -141,8 +136,6 @@ const { port } = config;
 async function start() {
   checkEncryptionKey();
   await initDockerInfrastructure();
-  await ensureDefaultPack();
-  await ensureInstancesDir();
   await ensureSharedWorkspaceDir();
   await ensureSharedDir();
   await setupBootstrapMode();

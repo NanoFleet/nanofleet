@@ -9,7 +9,7 @@ import { agentPlugins, agents, apiKeys, plugins } from '../db/schema';
 import { pluginRegistry } from '../routes/plugins';
 import { decrypt } from './crypto';
 import { attachToContainerLogs } from './log-stream';
-import { type McpServerEntry, generateAgentConfig, resolveProvider } from './nanobot-config';
+import { type McpServerEntry, generateAgentConfig, resolveProvider } from './agent-config';
 import { broadcastAgentStatus, broadcastToAgent } from './ws-manager';
 
 // ---------------------------------------------------------------------------

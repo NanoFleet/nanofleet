@@ -22,7 +22,7 @@ import {
   agentWorkspaceInternalPath,
   generateAgentConfig,
   resolveProvider,
-} from '../lib/nanobot-config';
+} from '../lib/agent-config';
 import { PACKS_DIR, getRequiredEnvVars, validatePack } from '../lib/packs';
 import { broadcastAgentStatus, broadcastToAgent } from '../lib/ws-manager';
 import { requireAuth } from '../middleware/auth';
