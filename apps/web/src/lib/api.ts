@@ -206,6 +206,8 @@ export const api = {
     hasStyle: boolean;
     hasMemory: boolean;
     hasAgents: boolean;
+    hasHistory: boolean;
+    hasHeartbeat: boolean;
   }> => {
     return api.get(`/api/agents/${id}/identity`);
   },
