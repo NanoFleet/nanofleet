@@ -16,6 +16,7 @@ import { requireAuth } from './middleware/auth';
 import { wsAuthMiddleware } from './middleware/websocket';
 import { agentRoutes } from './routes/agents';
 import { auth, setupBootstrapMode } from './routes/auth';
+import { channelRoutes } from './routes/channels';
 import { mcpRoutes } from './routes/mcp';
 import { packsRoutes } from './routes/packs';
 import { pluginRoutes, rebuildPluginRegistry } from './routes/plugins';
@@ -43,6 +44,7 @@ app.get('/', (c) => c.text('NanoFleet API'));
 
 app.route('/api/auth', auth);
 app.route('/api/agents', agentRoutes);
+app.route('/api/agents', channelRoutes);
 app.route('/api/plugins', pluginRoutes);
 app.route('/api/mcp', mcpRoutes);
 app.route('/api/settings', settingsRoutes);

@@ -1,8 +1,8 @@
 # NanoFleet
 
-A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker containers, interact with them via a web dashboard, and extend them with plugins.
+Management layer for [nanofleet-agent](https://github.com/NanoFleet/nanofleet-agent) instances. Deploy and manage a fleet of AI agents from a single web dashboard, extend them with plugins, and connect them to external platforms via channels.
 
-> [!WARNING]  
+> [!WARNING]
 > The project is currently in beta and is therefore not ready for production use.
 
 <table>
@@ -14,10 +14,11 @@ A self-hosted fleet manager for AI agents. Deploy agents in isolated Docker cont
 
 ## Features
 
-- Deploy agents as isolated Docker containers (powered by [nanobot](https://github.com/HKUDS/nanobot))
+- Deploy [nanofleet-agent](https://github.com/NanoFleet/nanofleet-agent) instances as isolated Docker containers
 - Web dashboard to manage agents, monitor logs, and chat in real time
 - Plugin system — extend agents with MCP tools and custom UIs
-- Agent packs — portable zip files defining an agent's behavior, tools, and rules
+- Agent packs — portable zip files defining an agent's identity, tools, and rules
+- Channel management — connect agents to external platforms (Telegram, ...) directly from the UI
 
 ## Getting started
 
