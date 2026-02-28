@@ -31,9 +31,9 @@ This design provides:
 │  │              │     :mcpPort         │  MCP only    │  │
 │  └──────┬───────┘                      └──────────────┘  │
 │         │                              ▲                 │
-│  ┌──────┴───────┐  config.json ────────┘                 │
+│  ┌──────┴───────┐  .mcp.json ──────────┘                 │
 │  │  Agent A     │  agent calls plugin MCP directly       │
-│  │  (nanobot)   │                                        │
+│  │  (nf-agent)  │                                        │
 │  └──────────────┘                                        │
 └──────────────────────────────────────────────────────────┘
          │
@@ -42,7 +42,7 @@ This design provides:
     Web Dashboard
 ```
 
-Agents call plugin MCP servers **directly** via the URL injected in their `config.json`. The NanoFleet API is not on the hot path for tool calls — it only calls `tools/list` at install time to populate the registry.
+Agents call plugin MCP servers **directly** via the URL injected in their `.mcp.json`. The NanoFleet API is not on the hot path for tool calls — it only calls `tools/list` at install time to populate the registry.
 
 ---
 
@@ -65,7 +65,7 @@ Steps:
 4. API connects to `http://{containerName}:{manifest.mcpPort}/mcp` and calls `tools/list`
 5. API registers all tools in the in-memory registry + DB
 6. Plugin record saved to DB with `status: "running"`
-7. **All existing agents are auto-linked** (`agent_plugins` rows inserted) and restarted (fire-and-forget) so their `config.json` and `TOOLS.md` are updated
+7. **All existing agents are auto-linked** (`agent_plugins` rows inserted) and restarted (fire-and-forget) so their `.mcp.json` and `TOOLS.md` are updated
 
 ### 3.2 Tool Registration (in-memory registry)
 
@@ -95,7 +95,7 @@ Steps:
 2. `container.stop()` + `container.remove()`
 3. Delete `agent_plugins` rows (cascade)
 4. Delete plugin row from DB
-5. **All affected agents are restarted** (fire-and-forget) so their `config.json` and `TOOLS.md` no longer reference the deleted plugin
+5. **All affected agents are restarted** (fire-and-forget) so their `.mcp.json` and `TOOLS.md` no longer reference the deleted plugin
 
 ---
 
@@ -107,7 +107,7 @@ Plugins are **automatically linked to all existing agents** at install time, and
 agents ──────< agent_plugins >────── plugins
 ```
 
-When an agent is started, the API generates its `config.json`. For each linked plugin, it adds an `mcpServers` entry pointing directly to the plugin container:
+When an agent is started, the API generates its `.mcp.json`. For each linked plugin, it adds an `mcpServers` entry pointing directly to the plugin container:
 
 ```json
 {
@@ -121,7 +121,7 @@ When an agent is started, the API generates its `config.json`. For each linked p
 }
 ```
 
-The agent (nanobot) discovers tools automatically via `tools/list` at startup.
+The agent discovers tools automatically via `tools/list` at startup.
 
 ---
 

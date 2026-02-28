@@ -5,14 +5,14 @@
 Agents call plugin MCP servers **directly** — the NanoFleet API is not on the hot path for tool calls. The API's role is to:
 
 1. Call `tools/list` at install time to populate the in-memory registry and store the tool list in DB
-2. Inject the correct MCP server URL into each agent's `config.json` at startup
+2. Inject the correct MCP server URL into each agent's `.mcp.json` at startup
 3. Proxy the plugin's web frontend via `/api/plugins/:name/ui/*` (for the Dashboard iframe)
 
 ---
 
 ## 2. Agent Configuration (Tool Injection)
 
-When an agent is started, NanoFleet generates its `config.json`. For each plugin enabled via `agent_plugins`, it injects an `mcpServers` entry pointing **directly to the plugin container**:
+When an agent is started, NanoFleet generates its `.mcp.json`. For each plugin enabled via `agent_plugins`, it injects an `mcpServers` entry pointing **directly to the plugin container**:
 
 ```json
 {
@@ -32,14 +32,14 @@ When an agent is started, NanoFleet generates its `config.json`. For each plugin
 
 The `agent_id` query parameter lets the plugin identify the calling agent without requiring authentication headers.
 
-The nanobot engine calls `tools/list` on each configured MCP server at startup to discover available tools.
+The agent calls `tools/list` on each configured MCP server at startup to discover available tools.
 
 ---
 
 ## 3. Tool Call Flow
 
 ```
-Agent (nanobot)
+Agent (nf-agent)
     │
     │  POST http://nanofleet-plugin-nanofleet-chat:8811/mcp?agent_id=abc123
     │  { "method": "tools/call", "params": { "name": "send_message_to_channel", ... } }
@@ -50,7 +50,7 @@ Plugin Container (nanofleet-chat)
     │  May call back to NanoFleet API via NANO_API_URL + NANO_INTERNAL_TOKEN
     │  Return JSON-RPC result
     ▼
-Agent (nanobot)
+Agent (nf-agent)
     │  Receives tool result, continues execution
 ```
 
