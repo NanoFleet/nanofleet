@@ -185,6 +185,10 @@ export const api = {
     return api.get('/api/agents');
   },
 
+  getAgentHealth: async (id: string): Promise<{ status: string; version?: string }> => {
+    return api.get(`/api/agents/${id}/health`);
+  },
+
   getAgentUsage: async (
     id: string
   ): Promise<{

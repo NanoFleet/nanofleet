@@ -83,7 +83,7 @@ function AgentMeta({ agentId }: { agentId: string }) {
   );
 }
 
-function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: string | null }) {
+function AgentUsage({ agentId }: { agentId: string }) {
   const { data } = useQuery({
     queryKey: ['agent-usage', agentId],
     queryFn: () => api.getAgentUsage(agentId),
@@ -93,14 +93,23 @@ function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: 
 
   return (
     <div className="flex items-center gap-2 text-[10px] text-neutral-400 font-mono ml-auto">
-      {agentVersion && <span>agent {agentVersion}</span>}
       {data && data.totalCost != null && (
-        <span className="ml-auto">
-          ${data.totalCost.toFixed(4)} · {data.requests} req
-        </span>
+        <span>${data.totalCost.toFixed(4)} · {data.requests} req</span>
       )}
     </div>
   );
+}
+
+function AgentVersion({ agentId }: { agentId: string }) {
+  const { data } = useQuery({
+    queryKey: ['agent-health', agentId],
+    queryFn: () => api.getAgentHealth(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  if (!data?.version) return null;
+  return <span className="text-[10px] text-neutral-400 font-mono">v{data.version}</span>;
 }
 
 function ChannelBadge({ agentId }: { agentId: string }) {
@@ -672,15 +681,18 @@ export function DashboardPage() {
 
               <div className="mt-2 flex items-center justify-between">
                 <AgentMeta agentId={agent.id} />
-                <AgentUsage agentId={agent.id} agentVersion={agent.agentVersion ?? null} />
+                <AgentUsage agentId={agent.id} />
               </div>
 
-              <Link
-                to={`/agents/${agent.id}`}
-                className="block mt-3 text-xs text-neutral-500 hover:text-neutral-700"
-              >
-                {t('agents.viewWorkspace')} →
-              </Link>
+              <div className="mt-3 flex items-center justify-between">
+                <Link
+                  to={`/agents/${agent.id}`}
+                  className="text-xs text-neutral-500 hover:text-neutral-700"
+                >
+                  {t('agents.viewWorkspace')} →
+                </Link>
+                <AgentVersion agentId={agent.id} />
+              </div>
             </div>
           ))}
         </div>

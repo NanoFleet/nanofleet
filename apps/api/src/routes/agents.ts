@@ -443,6 +443,19 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
   return c.json({ success: true });
 });
 
+agentRoutes.get('/:id/health', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) return c.json({ error: 'Agent not found' }, 404);
+  try {
+    const res = await fetch(`http://nanofleet-agent-${agentId}:4111/health`);
+    if (!res.ok) return c.json({ error: 'Agent unavailable' }, 503);
+    return c.json(await res.json());
+  } catch {
+    return c.json({ error: 'Agent unavailable' }, 503);
+  }
+});
+
 agentRoutes.get('/:id/usage', requireAuth, async (c) => {
   const agentId = c.req.param('id');
 

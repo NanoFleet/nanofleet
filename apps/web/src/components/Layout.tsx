@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  Bot,
   CheckSquare,
   KeyRound,
   LayoutDashboard,
@@ -27,7 +26,6 @@ const PLUGIN_ICON_MAP: Record<string, LucideIcon> = {
 
 const navItems = [
   { path: '/', label: 'dashboard.title', icon: LayoutDashboard },
-  { path: '/agents', label: 'nav.agents', icon: Bot },
   { path: '/plugins', label: 'nav.plugins', icon: Plug },
 ];
 
