@@ -88,7 +88,6 @@ interface PluginRegistryEntry {
   containerName: string;
   mcpPort: number;
   tools: string[];
-  toolsDoc: string | null;
 }
 
 // Map: pluginName → registry entry

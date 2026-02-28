@@ -109,7 +109,6 @@ export const PluginManifestSchema = z.object({
     .describe('Optional non-privileged port (1024-65535) for the plugin UI'),
   requiredEnvVars: z.array(z.string()).optional().default([]),
   sidebar: PluginSidebarSlotSchema.optional(),
-  toolsDoc: z.string().optional(),
   mountShared: z.boolean().optional().default(false),
   replacesNativeFeatures: z.array(z.string()).optional().default([]),
   generateEnvVars: z.array(z.string()).optional().default([]),

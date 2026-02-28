@@ -170,7 +170,6 @@ agentRoutes.post('/', requireAuth, async (c) => {
         pluginName: p.name,
         containerName: entry.containerName,
         mcpPort: entry.mcpPort,
-        toolsDoc: entry.toolsDoc ?? null,
       };
     })
     .filter((e): e is McpServerEntry => e !== null);

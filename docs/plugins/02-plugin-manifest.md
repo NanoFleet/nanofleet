@@ -27,8 +27,7 @@ POST /api/plugins/install
     "icon": "MessageSquare",
     "label": "Chat",
     "route": "/plugins/nanofleet-chat/ui"
-  },
-  "toolsDoc": "## nanofleet-chat — Multi-agent chat\n\nYou have access to a shared chat system..."
+  }
 }
 ```
 
@@ -50,7 +49,6 @@ POST /api/plugins/install
 | `sidebar.icon` | string | ✅ (if sidebar) | Lucide React icon name (e.g. `"MessageSquare"`, `"Calendar"`, `"Kanban"`). |
 | `sidebar.label` | string | ✅ (if sidebar) | Navigation label shown in the sidebar. |
 | `sidebar.route` | string | ✅ (if sidebar) | Frontend route path. Convention: `/plugins/{name}/ui`. Must be unique across installed plugins. |
-| `toolsDoc` | string | ❌ | Markdown documentation for the plugin's tools (stored in DB, displayed in the Dashboard). |
 
 ---
 
@@ -93,8 +91,7 @@ A plugin that only provides MCP tools to agents, with no UI:
   "description": "Provides weather data tools to agents",
   "image": "ghcr.io/myorg/nanofleet-weather:latest",
   "mcpPort": 8820,
-  "requiredEnvVars": ["OPENWEATHER_API_KEY"],
-  "toolsDoc": "## weather-api\n\n### get_weather\nReturns current weather for a location.\n- `location` (string): city name or coordinates"
+  "requiredEnvVars": ["OPENWEATHER_API_KEY"]
 }
 ```
 
@@ -118,8 +115,7 @@ A plugin with MCP tools, a Dashboard sidebar entry, and its own web frontend:
     "icon": "Kanban",
     "label": "Tasks",
     "route": "/plugins/nanofleet-kanban/ui"
-  },
-  "toolsDoc": "## nanofleet-kanban\n\n### create_task\nCreate a new task on the kanban board.\n- `title` (string): task title\n- `column` (string): board column (todo, in-progress, done)"
+  }
 }
 ```
 

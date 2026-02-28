@@ -30,7 +30,6 @@ export interface McpServerEntry {
   pluginName: string;
   containerName: string;
   mcpPort: number;
-  toolsDoc?: string | null;
 }
 
 export interface SetupAgentWorkspaceParams {

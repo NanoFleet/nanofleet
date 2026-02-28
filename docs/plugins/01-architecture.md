@@ -75,7 +75,6 @@ interface PluginRegistryEntry {
   containerName: string;
   mcpPort: number;
   tools: string[];          // e.g. ["send_message_to_channel", "list_agents"]
-  toolsDoc: string | null;  // markdown doc for this plugin's tools (stored in DB)
 }
 
 // Map: pluginName → registry entry
@@ -161,7 +160,6 @@ The plugin is fully responsible for its own UI — NanoFleet only provides the i
 | `status` | TEXT | `running`, `stopped`, `error` |
 | `manifestUrl` | TEXT | Source URL of the manifest |
 | `sidebarSlot` | TEXT (JSON) | Serialized sidebar declaration, or NULL |
-| `toolsDoc` | TEXT | Markdown documentation for the plugin's tools, or NULL |
 | `createdAt` | INTEGER | Unix timestamp |
 
 ### `agent_plugins` table
