@@ -181,19 +181,38 @@ agentRoutes.post('/', requireAuth, async (c) => {
     mcpServers,
   });
 
+  // Translate model ID to the format expected by nanofleet-agent's resolveModel():
+  // - openrouter/x → openrouter:x  (agent uses "openrouter:" prefix to select OpenRouter SDK)
+  // - google/x     → google/x      (agent checks for "google/" prefix, keep as-is)
+  // - anthropic/x  → x             (agent defaults to Anthropic SDK, strip vendor prefix)
+  // - x            → x             (no prefix, pass through)
+  const vendor = model.includes('/') ? model.split('/')[0].toLowerCase() : null;
+  let agentModel: string;
+  if (vendor === 'openrouter') {
+    agentModel = model.replace('openrouter/', 'openrouter:');
+  } else if (vendor === 'google') {
+    agentModel = model;
+  } else if (vendor) {
+    agentModel = model.split('/').slice(1).join('/');
+  } else {
+    agentModel = model;
+  }
+
   const container = await docker.createContainer({
     Image: 'ghcr.io/nanofleet/nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
     Env: [
-      `AGENT_MODEL=${model}`,
+      `AGENT_MODEL=${agentModel}`,
       'AGENT_WORKSPACE=/workspace',
       'MEMORY_DB_PATH=/workspace/.db/agent.db',
       'PORT=4111',
       `${providerEnvVarName}=${providerApiKey}`,
     ],
+    ExposedPorts: { '4111/tcp': {} },
     HostConfig: {
       Binds: [`${agentWorkspaceHostPath(agentId)}:/workspace`, `${SHARED_HOST_DIR}:/shared`],
       NetworkMode: NETWORK_NAME,
+      PortBindings: { '4111/tcp': [{ HostPort: '4111' }] },
     },
   });
 
@@ -432,6 +451,32 @@ agentRoutes.get('/:id/usage', requireAuth, async (c) => {
 
   try {
     const res = await fetch(`http://nanofleet-agent-${agentId}:4111/api/agents/main/usage`);
+    if (!res.ok) return c.json({ error: 'Agent unavailable' }, 503);
+    return c.json(await res.json());
+  } catch {
+    return c.json({ error: 'Agent unavailable' }, 503);
+  }
+});
+
+agentRoutes.get('/:id/identity', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) return c.json({ error: 'Agent not found' }, 404);
+  try {
+    const res = await fetch(`http://nanofleet-agent-${agentId}:4111/identity`);
+    if (!res.ok) return c.json({ error: 'Agent unavailable' }, 503);
+    return c.json(await res.json());
+  } catch {
+    return c.json({ error: 'Agent unavailable' }, 503);
+  }
+});
+
+agentRoutes.get('/:id/skills', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) return c.json({ error: 'Agent not found' }, 404);
+  try {
+    const res = await fetch(`http://nanofleet-agent-${agentId}:4111/skills`);
     if (!res.ok) return c.json({ error: 'Agent unavailable' }, 503);
     return c.json(await res.json());
   } catch {

@@ -45,6 +45,47 @@ const statusColors: Record<string, string> = {
   stopped: 'bg-red-100 text-red-800',
 };
 
+function AgentMeta({ agentId }: { agentId: string }) {
+  const { data: identity } = useQuery({
+    queryKey: ['agent-identity', agentId],
+    queryFn: () => api.getAgentIdentity(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const { data: skillsData } = useQuery({
+    queryKey: ['agent-skills', agentId],
+    queryFn: () => api.getAgentSkills(agentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  if (!identity && !skillsData) return null;
+
+  const skillCount = skillsData?.skills?.filter((s) => s.available).length ?? 0;
+
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {identity && (
+        <>
+          {(['hasSoul', 'hasMemory', 'hasStyle', 'hasAgents'] as const).map((key) => (
+            <span
+              key={key}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${identity[key] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
+            >
+              {key.replace('has', '').toLowerCase()}
+            </span>
+          ))}
+        </>
+      )}
+      {skillsData && (
+        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-neutral-100 text-neutral-500">
+          {skillCount} skill{skillCount !== 1 ? 's' : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: string | null }) {
   const { data } = useQuery({
     queryKey: ['agent-usage', agentId],
@@ -54,7 +95,7 @@ function AgentUsage({ agentId, agentVersion }: { agentId: string; agentVersion: 
   });
 
   return (
-    <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400 font-mono">
+    <div className="flex items-center gap-2 text-[10px] text-neutral-400 font-mono ml-auto">
       {agentVersion && <span>agent {agentVersion}</span>}
       {data && data.totalCost != null && (
         <span className="ml-auto">
@@ -457,7 +498,10 @@ export function DashboardPage() {
                 )}
               </div>
 
-              <AgentUsage agentId={agent.id} agentVersion={agent.agentVersion ?? null} />
+              <div className="mt-2 flex items-center justify-between">
+                <AgentMeta agentId={agent.id} />
+                <AgentUsage agentId={agent.id} agentVersion={agent.agentVersion ?? null} />
+              </div>
 
               <Link
                 to={`/agents/${agent.id}`}
