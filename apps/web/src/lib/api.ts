@@ -195,7 +195,9 @@ export const api = {
     return api.get(`/api/agents/${id}/usage`);
   },
 
-  getAgentIdentity: async (id: string): Promise<{
+  getAgentIdentity: async (
+    id: string
+  ): Promise<{
     hasSoul: boolean;
     hasStyle: boolean;
     hasMemory: boolean;
@@ -204,7 +206,9 @@ export const api = {
     return api.get(`/api/agents/${id}/identity`);
   },
 
-  getAgentSkills: async (id: string): Promise<{
+  getAgentSkills: async (
+    id: string
+  ): Promise<{
     skills: { id: string; name: string; available: boolean }[];
   }> => {
     return api.get(`/api/agents/${id}/skills`);

@@ -65,18 +65,15 @@ function AgentMeta({ agentId }: { agentId: string }) {
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      {identity && (
-        <>
-          {(['hasSoul', 'hasMemory', 'hasStyle', 'hasAgents'] as const).map((key) => (
-            <span
-              key={key}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${identity[key] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
-            >
-              {key.replace('has', '').toLowerCase()}
-            </span>
-          ))}
-        </>
-      )}
+      {identity &&
+        (['hasSoul', 'hasMemory', 'hasStyle', 'hasAgents'] as const).map((key) => (
+          <span
+            key={key}
+            className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${identity[key] ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}
+          >
+            {key.replace('has', '').toLowerCase()}
+          </span>
+        ))}
       {skillsData && (
         <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-neutral-100 text-neutral-500">
           {skillCount} skill{skillCount !== 1 ? 's' : ''}
