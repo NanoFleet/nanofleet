@@ -4,8 +4,8 @@ import { docker } from '@nanofleet/docker';
 import { db } from '../db';
 import { agentPlugins, agents, plugins } from '../db/schema';
 import { pluginRegistry } from '../routes/plugins';
-import { attachToContainerLogs } from './log-stream';
 import { type McpServerEntry, setupAgentWorkspace } from './agent-config';
+import { attachToContainerLogs } from './log-stream';
 import { broadcastAgentStatus, broadcastToAgent } from './ws-manager';
 
 // ---------------------------------------------------------------------------

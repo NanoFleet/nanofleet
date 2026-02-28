@@ -125,4 +125,3 @@ export async function listPacks(): Promise<string[]> {
   const entries = await readdir(PACKS_DIR, { withFileTypes: true });
   return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
 }
-

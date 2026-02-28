@@ -11,9 +11,6 @@ import {
 } from '@nanofleet/shared';
 import { db } from '../db';
 import { agentPlugins, agents, apiKeys, plugins } from '../db/schema';
-import { rebuildAndRestartAgent } from '../lib/agent-lifecycle';
-import { decrypt } from '../lib/crypto';
-import { attachToContainerLogs } from '../lib/log-stream';
 import {
   type McpServerEntry,
   SHARED_HOST_DIR,
@@ -21,6 +18,9 @@ import {
   agentWorkspaceInternalPath,
   setupAgentWorkspace,
 } from '../lib/agent-config';
+import { rebuildAndRestartAgent } from '../lib/agent-lifecycle';
+import { decrypt } from '../lib/crypto';
+import { attachToContainerLogs } from '../lib/log-stream';
 import { PACKS_DIR, getRequiredEnvVars, validatePack } from '../lib/packs';
 import { broadcastAgentStatus, broadcastToAgent } from '../lib/ws-manager';
 import { requireAuth } from '../middleware/auth';
@@ -172,16 +172,13 @@ agentRoutes.post('/', requireAuth, async (c) => {
     name: `nanofleet-agent-${agentId}`,
     Env: [
       `AGENT_MODEL=${model}`,
-      `AGENT_WORKSPACE=/workspace`,
-      `MEMORY_DB_PATH=/workspace/.db/agent.db`,
-      `PORT=4111`,
+      'AGENT_WORKSPACE=/workspace',
+      'MEMORY_DB_PATH=/workspace/.db/agent.db',
+      'PORT=4111',
       `${providerEnvVarName}=${providerApiKey}`,
     ],
     HostConfig: {
-      Binds: [
-        `${agentWorkspaceHostPath(agentId)}:/workspace`,
-        `${SHARED_HOST_DIR}:/shared`,
-      ],
+      Binds: [`${agentWorkspaceHostPath(agentId)}:/workspace`, `${SHARED_HOST_DIR}:/shared`],
       NetworkMode: NETWORK_NAME,
     },
   });
@@ -376,12 +373,10 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
 
   const envVars = [
     `AGENT_MODEL=${model}`,
-    `AGENT_WORKSPACE=/workspace`,
-    `MEMORY_DB_PATH=/workspace/.db/agent.db`,
-    `PORT=4111`,
-    ...(providerEnvVarName && providerApiKey
-      ? [`${providerEnvVarName}=${providerApiKey}`]
-      : []),
+    'AGENT_WORKSPACE=/workspace',
+    'MEMORY_DB_PATH=/workspace/.db/agent.db',
+    'PORT=4111',
+    ...(providerEnvVarName && providerApiKey ? [`${providerEnvVarName}=${providerApiKey}`] : []),
   ];
 
   const container = await docker.createContainer({
@@ -389,10 +384,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
     name: `nanofleet-agent-${agentId}`,
     Env: envVars,
     HostConfig: {
-      Binds: [
-        `${agentWorkspaceHostPath(agentId)}:/workspace`,
-        `${SHARED_HOST_DIR}:/shared`,
-      ],
+      Binds: [`${agentWorkspaceHostPath(agentId)}:/workspace`, `${SHARED_HOST_DIR}:/shared`],
       NetworkMode: NETWORK_NAME,
     },
   });
