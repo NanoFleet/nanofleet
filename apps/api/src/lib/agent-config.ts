@@ -47,7 +47,15 @@ export async function setupAgentWorkspace({
   await mkdir(workspaceDir, { recursive: true });
 
   // Files the pack may provide; all are copied only if not already present in the workspace.
-  const PACK_FILES = ['SOUL.md', 'MEMORY.md', 'STYLE.md', 'AGENTS.md', 'HISTORY.md', 'HEARTBEAT.md', 'cron.json'];
+  const PACK_FILES = [
+    'SOUL.md',
+    'MEMORY.md',
+    'STYLE.md',
+    'AGENTS.md',
+    'HISTORY.md',
+    'HEARTBEAT.md',
+    'cron.json',
+  ];
 
   if (packPath) {
     // Copy known pack files → workspace (only if not already present, to preserve user edits)
