@@ -30,7 +30,6 @@ export interface McpServerEntry {
   pluginName: string;
   containerName: string;
   mcpPort: number;
-  toolsDoc?: string | null;
 }
 
 export interface SetupAgentWorkspaceParams {
@@ -47,17 +46,30 @@ export async function setupAgentWorkspace({
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   await mkdir(workspaceDir, { recursive: true });
 
+  // Files the pack may provide; all are copied only if not already present in the workspace.
+  const PACK_FILES = [
+    'SOUL.md',
+    'MEMORY.md',
+    'STYLE.md',
+    'AGENTS.md',
+    'HISTORY.md',
+    'HEARTBEAT.md',
+    'cron.json',
+  ];
+
   if (packPath) {
-    // Copy SOUL.md from pack → workspace (only if not already present)
-    const soulPath = resolve(workspaceDir, 'SOUL.md');
-    try {
-      await access(soulPath);
-      // Already exists — don't overwrite user edits
-    } catch {
+    // Copy known pack files → workspace (only if not already present, to preserve user edits)
+    for (const filename of PACK_FILES) {
+      const dst = resolve(workspaceDir, filename);
       try {
-        await copyFile(resolve(packPath, 'SOUL.md'), soulPath);
+        await access(dst);
+        // Already exists — don't overwrite
       } catch {
-        console.warn(`[AgentConfig] No SOUL.md found in pack: ${packPath}`);
+        try {
+          await copyFile(resolve(packPath, filename), dst);
+        } catch {
+          // File not in pack — that's fine
+        }
       }
     }
 
@@ -75,7 +87,7 @@ export async function setupAgentWorkspace({
     }
   }
 
-  // Create required/optional workspace files if absent (nanofleet-agent expects them to exist)
+  // Ensure required workspace files exist (create empty if pack didn't provide them)
   for (const filename of ['SOUL.md', 'MEMORY.md', 'STYLE.md', 'AGENTS.md', 'HISTORY.md']) {
     const filePath = resolve(workspaceDir, filename);
     try {

@@ -60,7 +60,7 @@ Inside the Agent Cards, the live feed is visually separated to represent the "Co
 
 ### View 3: The Configuration Editor
 * **Layout:** A clean, distraction-free text editor reminiscent of Notion.
-* **Content:** For live-editing `SOUL.md` and `TOOLS.md` using Markdown syntax highlighting.
+* **Content:** For live-editing `SOUL.md` using Markdown syntax highlighting.
 
 ### View 4: The Forge (Marketplace)
 * **Layout:** A catalog grid listing downloadable Agent Packs.

@@ -3,68 +3,66 @@
 ## 1. The Orchestrator Pattern
 Unlike traditional web applications, the NanoFleet Hono backend serves a dual purpose: it is an API server and a **local container orchestrator**.
 
-Instead of relying on heavy tools like Kubernetes or Docker Compose files for agent deployment, NanoFleet programmatically interacts with the host's Docker Daemon using the Docker SDK for Node/TypeScript (`docker/node-sdk` or equivalent `dockerode` wrappers). This allows the Dashboard and Mobile App to deploy, pause, and destroy agents instantly.
+Instead of relying on heavy tools like Kubernetes or Docker Compose files for agent deployment, NanoFleet programmatically interacts with the host's Docker Daemon via the `@nanofleet/docker` package (a `dockerode` wrapper). This allows the Dashboard to deploy, stop, and destroy agents and plugins dynamically.
 
 ## 2. Infrastructure Isolation (Network & Volumes)
 
 To ensure security and proper communication, the orchestrator manages specific Docker resources.
 
 ### 2.1 The Internal Network (`nanofleet-net`)
-* Upon initialization, the backend creates a dedicated, isolated Docker bridge network (e.g., `nanofleet-net`).
-* All Agent (Nanobot) containers and Plugin containers are attached to this network.
-* **Security:** Containers on this network can resolve each other and the main API container by name (e.g., `http://host.docker.internal:3000`), but they do not expose any ports to the host machine or the public internet.
+* Upon initialization, the backend ensures a dedicated, isolated Docker bridge network named `nanofleet-net` exists.
+* All Agent containers and Plugin containers are attached to this network.
+* Containers can resolve each other by container name (e.g., `http://nanofleet-plugin-tasks:3001`).
+* No ports are exposed to the host machine by default.
 
 ### 2.2 The Workspaces (Host Bind Mounts)
-All workspace directories live under `~/.nanofleet/` on the host and are bind-mounted into containers (not named Docker volumes, so the API can access them directly).
+All workspace directories live under `~/.nanofleet/` on the host and are bind-mounted into containers.
 
-* **Per-agent workspace:** `~/.nanofleet/workspace/{agentId}/` → mounted at `/workspace/{agentId}` inside each container.
-  * Contains `SOUL.md`, `TOOLS.md`, and any files the agent produces.
+* **Per-agent workspace:** `~/.nanofleet/agents/{agentId}/` → mounted at `/workspace` inside the agent container.
+  * Contains `SOUL.md`, `.mcp.json`, `skills/`, and any files the agent produces.
   * Only the owning agent's container has this mount.
-* **Shared workspace:** `~/.nanofleet/shared/` → mounted at `/shared` in every container.
-  * Used to exchange artifacts between agents (files, reports, generated code, etc.).
-* **Rule:** System state (chat messages, Kanban cards, calendar events) is **NEVER** written to these directories. State mutations must go through MCP/API calls to the backend.
+* **Shared workspace:** `~/.nanofleet/shared/` → mounted at `/shared` in every agent container.
+  * Used to exchange artifacts between agents.
+* **Plugin data volume:** Each plugin gets a named Docker volume `nanofleet-plugin-{name}-data` mounted at `/data` for persistent plugin data.
 
 ## 3. Agent Lifecycle Management
 
-When a user initiates an action from the UI, the backend translates it into Docker API commands.
-
 ### 3.1 Spawning an Agent (Deployment)
-1. **Payload Reception:** The user requests to deploy an "Agent Pack" (e.g., Marketing Lead).
-2. **Configuration:** The backend reads the pack's `SOUL.md` and `TOOLS.md`, copies them to `~/.nanofleet/workspace/{agentId}/`, and generates `~/.nanofleet/instances/{agentId}/config.json`.
+1. **Payload Reception:** The user requests to deploy an Agent Pack via `POST /api/agents`.
+2. **Workspace Setup:** The API copies pack files (`SOUL.md`, `skills/`) to `~/.nanofleet/agents/{agentId}/` and generates `.mcp.json` containing MCP endpoint URLs for all linked plugins.
 3. **Container Creation:** The orchestrator calls `docker.createContainer()`.
-   * **Image:** `nanofleet-nanobot:latest` (custom build in `packages/docker/`).
+   * **Image:** `ghcr.io/nanofleet/nanofleet-agent:latest`
+   * **Name:** `nanofleet-agent-{agentId}`
    * **Binds:**
-     - `~/.nanofleet/workspace/{agentId}` → `/workspace/{agentId}`
+     - `~/.nanofleet/agents/{agentId}` → `/workspace`
      - `~/.nanofleet/shared` → `/shared`
-     - `~/.nanofleet/instances/{agentId}` → `/root/.nanobot`
-   * **Env:** Injects `NANO_INTERNAL_TOKEN`, `NANO_API_URL`, `NANO_AGENT_ID`.
-4. **Start:** The orchestrator calls `container.start()`. The agent is now alive and autonomous.
-5. **Connection:** On boot, the container's NanoFleet channel connects back to `NANO_API_URL/internal/ws` using `NANO_INTERNAL_TOKEN` to register itself for bidirectional messaging.
+   * **Env:** `AGENT_MODEL`, `AGENT_WORKSPACE=/workspace`, `MEMORY_DB_PATH`, `PORT=4111`, and the provider API key (e.g. `ANTHROPIC_API_KEY`).
+4. **Start:** `container.start()`. The agent is now alive and listening on port `4111` (internal network only).
+5. **Log Streaming:** The API attaches to container `stdout`/`stderr` and broadcasts log chunks to the Web Dashboard via WebSocket.
 
-### 3.2 Pausing, Resuming, and Terminating
-* **Pause:** `container.pause()` freezes the agent's processes without losing its in-memory context. Useful to halt token spending temporarily.
-* **Resume:** `container.unpause()` wakes the agent up.
-* **Terminate:** `container.stop()` followed by `container.remove()`. The agent's temporary container is destroyed, leaving behind only the artifacts it produced in the workspace.
+### 3.2 Stopping and Resuming
+* **Stop (Pause):** `container.stop()` — gracefully stops the agent container. Status set to `stopped`.
+* **Resume:** `container.start()` on the existing container. Log streaming is re-attached. Status set to `running`.
+* **Delete:** `container.stop()` + `container.remove()`. The agent's workspace files are left intact on the host.
 
-## 4. The NanoFleet Channel (Agent ↔ API Communication)
+### 3.3 Upgrade
+When a user triggers an upgrade (`POST /api/agents/:id/upgrade`):
+1. The old container is stopped and removed.
+2. A new container is created from the latest `nanofleet-agent:latest` image with the same workspace bind-mount.
+3. The provider API key is re-resolved from the vault.
 
-Nanobot does not expose any HTTP or WebSocket server by default. To enable bidirectional communication between the NanoFleet API and a running agent, a custom Python **channel** is injected into the container at build time.
+## 4. Agent ↔ API Communication
 
-### 4.1 How It Works
-The `packages/docker/` directory contains:
-* `nanofleet_channel.py` — A Python class extending nanobot's channel system. On startup, it connects to `NANO_API_URL/internal/ws`, authenticates with `NANO_INTERNAL_TOKEN`, then:
-  * **Inbound:** Listens for `{ type: "message", content: "...", sessionKey: "..." }` from the API and pushes them into nanobot's `MessageBus.inbound`.
-  * **Outbound:** Reads from nanobot's `MessageBus.outbound` and forwards responses back to the API.
-* `entrypoint.sh` — Copies `nanofleet_channel.py` into nanobot's channels directory before launching `nanobot gateway`.
+Agent containers expose an HTTP API on port `4111` (Mastra framework). The NanoFleet API communicates with agents via direct HTTP calls on the internal Docker network:
 
-### 4.2 Internal WebSocket Endpoint (`/internal/ws`)
-The NanoFleet API exposes a dedicated WebSocket endpoint for agent containers:
-* **Auth:** `Authorization: Bearer <NANO_INTERNAL_TOKEN>` on connect. The API looks up the token in the DB to identify the `agentId`.
-* **Agent registration:** The connection is stored in `agentConnections: Map<agentId, ServerWebSocket>`.
-* **Message forwarding:**
-  * API → Agent: `{ type: "message", content: "...", sessionKey: "nanofleet:{agentId}" }`
-  * Agent → API: `{ type: "response", content: "...", agentId: "..." }` → saved to DB + broadcasted to UI clients via the existing `/ws` endpoint.
+* `GET  http://nanofleet-agent-{id}:4111/health` — health check
+* `GET  http://nanofleet-agent-{id}:4111/api/agents/main/usage` — token usage
+* `GET  http://nanofleet-agent-{id}:4111/identity` — agent identity
+* `GET  http://nanofleet-agent-{id}:4111/skills` — available skills
+* `POST http://nanofleet-agent-{id}:4111/api/agents/main/generate` — send a message to the agent
 
-## 5. Real-Time Log Streaming (I/O)
+The `/internal/agents/:id/messages` endpoint on the NanoFleet API proxies user messages to agents, requiring a valid internal token.
 
-The backend attaches to container `stdout`/`stderr` right after `container.start()` and broadcasts log chunks over the existing WebSocket room for that agent. This is used for observability (not for chat — chat goes through the NanoFleet channel described above).
+## 5. Real-Time Log Streaming
+
+After `container.start()`, the API calls `attachToContainerLogs()` which attaches to the container's `stdout`/`stderr` stream and broadcasts log chunks over WebSocket to the Dashboard. This provides live observability into the agent's background activity.

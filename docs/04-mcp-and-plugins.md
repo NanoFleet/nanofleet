@@ -1,58 +1,72 @@
 # 04 - MCP & Plugin Architecture
 
 ## 1. The Extensibility Challenge
-Traditional AI agents rely on hardcoded Python/TypeScript tools injected directly into their execution environment. This approach is not scalable, poses severe security risks (executing third-party code in the host), and makes it impossible to dynamically update the UI across both Web and Mobile platforms simultaneously.
-
-NanoFleet solves this by leveraging the **Model Context Protocol (MCP)** and **Docker Isolation**. In NanoFleet, a Plugin is NOT a script injected into the backend; it is an independent Docker container exposing an MCP Server.
+NanoFleet uses **Docker-isolated plugins** to extend agent capabilities. A Plugin is an independent Docker container that exposes an **MCP Server** (HTTP transport). This approach guarantees security — if a plugin crashes or misbehaves, it is fully isolated inside its container.
 
 ## 2. The Plugin Architecture (Containers as Plugins)
 
-When a user installs a Plugin (e.g., "Google Calendar Integration" or "Jira Sync"):
-1. The orchestrator downloads the Plugin's Docker image or builds it from a Git repository.
-2. It spins up the Plugin in a sandboxed Docker container attached to the `nanofleet-net` internal network.
-3. The central Hono API acts as the **MCP Router / Gateway**. It connects to the Plugin's MCP Server and asks for its capabilities (available Tools, Resources, and UI components).
-4. The API registers these capabilities in its global routing table.
+When a user installs a Plugin (e.g., `nanofleet-tasks`, `nanofleet-vault`):
+1. The API fetches the plugin manifest from the provided URL.
+2. It pulls and starts the Plugin's Docker image as a container on the `nanofleet-net` network.
+3. The API polls the plugin's MCP server until it is ready (up to 15 seconds), fetching `tools/list`.
+4. The plugin is registered in the **in-memory plugin registry** and stored in the database.
 
-**Security Benefit:** If a malicious or buggy Plugin crashes or attempts to steal data, it is trapped inside its container. It can only communicate with the outside world through the strict, heavily monitored MCP channels managed by the central API.
+**Security Benefit:** Plugins cannot directly access the host or other containers except via the strict MCP channel managed by the central API.
 
-## 3. How Agents Use Plugins (The Tooling Flow)
+## 3. Plugin Manifest
 
-Agents (Nanobots) never talk to Plugins directly. All communication goes through the central Hono API.
+A plugin is installed by providing a URL to its `plugin-manifest.json`. The key fields are:
 
-1. **Discovery:** When an Agent boots, the API injects the list of all available MCP tools into the Agent's context (e.g., `create_calendar_event`).
-2. **Action:** The Agent decides to schedule a meeting. It sends an MCP JSON-RPC request to the API: 
-   `{ "method": "tools/call", "params": { "name": "create_calendar_event", "arguments": {...} } }`
-3. **Routing:** The API verifies the Agent's permissions (`NANO_INTERNAL_TOKEN`), finds which Plugin owns `create_calendar_event`, and forwards the request to the correct Plugin container.
-4. **Execution & Response:** The Plugin executes the logic (e.g., calling the Google API) and returns the result to the API, which forwards it back to the Agent.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | yes | Unique plugin identifier |
+| `version` | string | yes | Semantic version |
+| `image` | string | yes | Docker image to pull and run |
+| `mcpPort` | number | yes | Port where the MCP server listens |
+| `uiPort` | number | no | Port for the plugin's web UI (proxied via `/api/plugins/:name/ui/*`) |
+| `generateEnvVars` | string[] | no | Auto-generated env vars (random tokens) injected into the container |
+| `mountShared` | boolean | no | If true, mounts `~/.nanofleet/shared` at `/shared` in the container |
+| `replacesNativeFeatures` | string[] | no | Native Dashboard features this plugin replaces |
+| `sidebar` | object | no | Sidebar slot configuration for the plugin's UI |
 
-## 4. Server-Driven UI (SDUI) & Multi-Platform Rendering
+## 4. How Agents Use Plugins (The Tooling Flow)
 
-Plugins often need to display information to the human user (e.g., showing the actual Calendar grid on the Dashboard). Since NanoFleet has a React Web App and a React Native Mobile App, Plugins cannot inject raw HTML/DOM elements or React components.
+Agents communicate with plugins directly over MCP — the NanoFleet API does **not** proxy MCP calls at runtime. Instead:
 
-Instead, NanoFleet uses **Server-Driven UI (SDUI)** via MCP.
+1. **Workspace generation:** When an agent is deployed or a plugin is linked, the API writes a `.mcp.json` file into the agent's workspace. This file lists all linked plugin MCP server URLs (e.g., `http://nanofleet-plugin-tasks:3001/mcp`).
+2. **Discovery:** When the agent container boots, the Mastra framework reads `.mcp.json` and connects to each listed MCP server, calling `tools/list` to discover available tools.
+3. **Action:** The agent calls MCP tools directly on plugin containers over the internal Docker network.
 
-### 4.1 The SDUI Payload
-When the user navigates to a Plugin's view on the Dashboard, the Frontend requests the UI from the API. The API asks the Plugin via MCP, and the Plugin returns a standardized JSON structure:
-```json
-{
-  "type": "View",
-  "children": },
-      "actions": { "onClick": "open_event_modal" }
-    }
-  ]
+The agent and plugin containers communicate directly over `nanofleet-net` — both are on the same internal bridge network.
+
+## 5. Plugin Registry (In-Memory)
+
+The API maintains an in-memory `pluginRegistry` map keyed by plugin name:
+
+```ts
+interface PluginRegistryEntry {
+  pluginId: string;
+  containerName: string;
+  mcpPort: number;
+  uiPort: number | null;
+  tools: string[];       // Tool names from last tools/list probe
 }
 ```
 
-### 4.2 Frontend Interpretation
-* The **Web App (React)** reads `"type": "CalendarGrid"` and renders its pre-built `<CalendarGrid />` DOM component.
-* The **Mobile App (React Native)** reads the exact same JSON and renders its native `<NativeCalendarGrid />` view.
-* This guarantees a 100% native, fluid experience on both platforms from a single Plugin codebase.
+The registry is rebuilt on API startup by probing each known plugin's MCP server. It is updated when plugins are installed, restarted, or removed.
 
-## 5. Internationalization (i18n) in Plugins
+## 6. Plugin UI Proxying
 
-Because NanoFleet is designed for a global audience, Plugins must respect the user's language preferences.
+If a plugin has a `uiPort`, its web UI is accessible through the NanoFleet API as a transparent proxy:
 
-1. **Context Injection:** When the Frontend requests an SDUI payload from the API, it includes the user's current locale (e.g., `fr-FR` or `ja-JP`).
-2. **MCP Forwarding:** The API forwards this locale to the Plugin container in the MCP request context.
-3. **Plugin Responsibility:** The Plugin reads the locale and translates its SDUI JSON response accordingly (e.g., returning `"title": "Calendrier"` instead of `"Calendar"`). 
-4. **Fallback:** If the Plugin does not support the requested language, it MUST fallback to English to prevent UI breakage.
+* `GET /api/plugins/:name/ui/*` — proxies HTML/JS/CSS assets (no auth, iframe-safe)
+* `ALL /api/plugins/:name/rest/*` — proxies REST API calls (JWT auth required)
+
+This allows the Dashboard to embed plugin UIs in iframes without CORS issues.
+
+## 7. Plugin Lifecycle
+
+* **Install:** `POST /api/plugins/install` — fetch manifest, pull image, start container, probe MCP, register.
+* **List:** `GET /api/plugins` — returns all plugins with their current tool list from the registry.
+* **Restart:** `POST /api/plugins/:id/restart` — stop and start the container, re-probe tools.
+* **Uninstall:** `DELETE /api/plugins/:id` — stop container, remove from registry, cascade-delete agent links, restart affected agents.

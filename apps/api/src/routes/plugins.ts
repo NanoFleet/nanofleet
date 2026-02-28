@@ -25,7 +25,6 @@ interface PluginRegistryEntry {
   mcpPort: number;
   uiPort: number | null;
   tools: string[];
-  toolsDoc: string | null;
 }
 
 export const pluginRegistry = new Map<string, PluginRegistryEntry>();
@@ -140,15 +139,12 @@ export async function rebuildPluginRegistry(): Promise<void> {
 
     await db.update(plugins).set({ status }).where(eq(plugins.id, plugin.id));
 
-    // Always register in memory — toolsDoc comes from DB and must be available
-    // for TOOLS.md generation even if the MCP server is temporarily unreachable.
     pluginRegistry.set(plugin.name, {
       pluginId: plugin.id,
       containerName: plugin.containerName,
       mcpPort: plugin.mcpPort,
       uiPort: plugin.uiPort ?? null,
       tools,
-      toolsDoc: plugin.toolsDoc ?? null,
     });
   }
 }
@@ -275,7 +271,6 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
 
   // 6. Save to DB
   const sidebarSlot = manifest.sidebar ? JSON.stringify(manifest.sidebar) : null;
-  const toolsDoc = manifest.toolsDoc ?? null;
   const replacesNativeFeatures =
     manifest.replacesNativeFeatures && manifest.replacesNativeFeatures.length > 0
       ? JSON.stringify(manifest.replacesNativeFeatures)
@@ -296,7 +291,6 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
     status,
     manifestUrl,
     sidebarSlot,
-    toolsDoc,
     replacesNativeFeatures,
     generatedEnvVars,
   });
@@ -308,7 +302,6 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
     mcpPort: manifest.mcpPort,
     uiPort: manifest.uiPort ?? null,
     tools,
-    toolsDoc,
   });
 
   console.log(
@@ -585,7 +578,6 @@ pluginRoutes.post('/:id/restart', requireAuth, async (c) => {
     mcpPort: plugin.mcpPort,
     uiPort: plugin.uiPort ?? null,
     tools,
-    toolsDoc: plugin.toolsDoc ?? null,
   });
 
   console.log(`[Plugins] Plugin '${plugin.name}' restarted (status: ${status})`);

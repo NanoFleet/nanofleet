@@ -46,7 +46,6 @@ export const plugins = sqliteTable('plugins', {
     .default('running'),
   manifestUrl: text('manifest_url').notNull(),
   sidebarSlot: text('sidebar_slot'),
-  toolsDoc: text('tools_doc'),
   replacesNativeFeatures: text('replaces_native_features'),
   generatedEnvVars: text('generated_env_vars'),
   createdAt: integer('created_at', { mode: 'timestamp' })

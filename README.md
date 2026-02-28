@@ -99,7 +99,6 @@ rm apps/api/nanofleet.db
 | [docs/04-mcp-and-plugins.md](docs/04-mcp-and-plugins.md) | MCP protocol, plugin architecture |
 | [docs/05-agent-packs.md](docs/05-agent-packs.md) | Agent packs format |
 | [docs/06-ui-and-design-system.md](docs/06-ui-and-design-system.md) | UI design system |
-| [docs/07-chat-system.md](docs/07-chat-system.md) | Direct chat and agent messaging |
 | [docs/plugins/](docs/plugins/) | Plugin system deep-dive |
 
 ## Official plugins

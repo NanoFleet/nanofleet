@@ -170,7 +170,6 @@ agentRoutes.post('/', requireAuth, async (c) => {
         pluginName: p.name,
         containerName: entry.containerName,
         mcpPort: entry.mcpPort,
-        toolsDoc: entry.toolsDoc ?? null,
       };
     })
     .filter((e): e is McpServerEntry => e !== null);
@@ -581,10 +580,16 @@ agentRoutes.get('/:id/workspace', requireAuth, async (c) => {
   try {
     const entries = await readdir(workspaceDir, { recursive: true });
     const files = await Promise.all(
-      entries.map(async (name) => {
-        const fileStat = await stat(resolve(workspaceDir, name as string));
-        return fileStat.isFile() ? { name, size: fileStat.size } : null;
-      })
+      entries
+        .filter((name) => {
+          const parts = (name as string).split('/');
+          // Hide hidden directories (e.g. .db) and their contents; keep .mcp.json
+          return !parts.some((p) => p.startsWith('.') && p !== '.mcp.json');
+        })
+        .map(async (name) => {
+          const fileStat = await stat(resolve(workspaceDir, name as string));
+          return fileStat.isFile() ? { name, size: fileStat.size } : null;
+        })
     );
     return c.json({ files: files.filter(Boolean) });
   } catch {

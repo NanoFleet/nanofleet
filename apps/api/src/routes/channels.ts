@@ -115,12 +115,21 @@ channelRoutes.get('/:agentId/channels', requireAuth, async (c) => {
 
   const agentChannels = await db.select().from(channels).where(eq(channels.agentId, agentId));
 
-  return c.json({
-    channels: agentChannels.map((ch) => ({
-      ...ch,
-      envVars: ch.envVars ? JSON.parse(ch.envVars) : null,
-    })),
-  });
+  const result = await Promise.all(
+    agentChannels.map(async (ch) => {
+      let status: 'running' | 'error' = 'error';
+      try {
+        const container = docker.getContainer(ch.containerName);
+        const info = await container.inspect();
+        status = info.State.Status === 'running' ? 'running' : 'error';
+      } catch {
+        status = 'error';
+      }
+      return { ...ch, status, envVars: ch.envVars ? JSON.parse(ch.envVars) : null };
+    })
+  );
+
+  return c.json({ channels: result });
 });
 
 // ---------------------------------------------------------------------------

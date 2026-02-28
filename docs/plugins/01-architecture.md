@@ -31,9 +31,9 @@ This design provides:
 │  │              │     :mcpPort         │  MCP only    │  │
 │  └──────┬───────┘                      └──────────────┘  │
 │         │                              ▲                 │
-│  ┌──────┴───────┐  config.json ────────┘                 │
+│  ┌──────┴───────┐  .mcp.json ──────────┘                 │
 │  │  Agent A     │  agent calls plugin MCP directly       │
-│  │  (nanobot)   │                                        │
+│  │  (nf-agent)  │                                        │
 │  └──────────────┘                                        │
 └──────────────────────────────────────────────────────────┘
          │
@@ -42,7 +42,7 @@ This design provides:
     Web Dashboard
 ```
 
-Agents call plugin MCP servers **directly** via the URL injected in their `config.json`. The NanoFleet API is not on the hot path for tool calls — it only calls `tools/list` at install time to populate the registry.
+Agents call plugin MCP servers **directly** via the URL injected in their `.mcp.json`. The NanoFleet API is not on the hot path for tool calls — it only calls `tools/list` at install time to populate the registry.
 
 ---
 
@@ -65,7 +65,7 @@ Steps:
 4. API connects to `http://{containerName}:{manifest.mcpPort}/mcp` and calls `tools/list`
 5. API registers all tools in the in-memory registry + DB
 6. Plugin record saved to DB with `status: "running"`
-7. **All existing agents are auto-linked** (`agent_plugins` rows inserted) and restarted (fire-and-forget) so their `config.json` and `TOOLS.md` are updated
+7. **All existing agents are auto-linked** (`agent_plugins` rows inserted) and restarted (fire-and-forget) so their `.mcp.json` is updated
 
 ### 3.2 Tool Registration (in-memory registry)
 
@@ -75,7 +75,6 @@ interface PluginRegistryEntry {
   containerName: string;
   mcpPort: number;
   tools: string[];          // e.g. ["send_message_to_channel", "list_agents"]
-  toolsDoc: string | null;  // markdown doc injected into agent TOOLS.md
 }
 
 // Map: pluginName → registry entry
@@ -91,11 +90,11 @@ DELETE /api/plugins/:id
 ```
 
 Steps:
-1. Remove plugin from the in-memory registry (so it is excluded from the next TOOLS.md generation)
+1. Remove plugin from the in-memory registry
 2. `container.stop()` + `container.remove()`
 3. Delete `agent_plugins` rows (cascade)
 4. Delete plugin row from DB
-5. **All affected agents are restarted** (fire-and-forget) so their `config.json` and `TOOLS.md` no longer reference the deleted plugin
+5. **All affected agents are restarted** (fire-and-forget) so their `.mcp.json` no longer references the deleted plugin
 
 ---
 
@@ -107,7 +106,7 @@ Plugins are **automatically linked to all existing agents** at install time, and
 agents ──────< agent_plugins >────── plugins
 ```
 
-When an agent is started, the API generates its `config.json`. For each linked plugin, it adds an `mcpServers` entry pointing directly to the plugin container:
+When an agent is started, the API generates its `.mcp.json`. For each linked plugin, it adds an `mcpServers` entry pointing directly to the plugin container:
 
 ```json
 {
@@ -121,29 +120,11 @@ When an agent is started, the API generates its `config.json`. For each linked p
 }
 ```
 
-The agent (nanobot) discovers tools automatically via `tools/list` at startup.
+The agent discovers tools automatically via `tools/list` at startup.
 
 ---
 
-## 5. TOOLS.md — Dynamic Tool Documentation
-
-Every time an agent's config is regenerated (`generateAgentConfig`), a `TOOLS.md` is written to the agent workspace. Content is built by concatenating the `toolsDoc` field from every active plugin in the registry:
-
-```markdown
-# Available Tools
-
-## nanofleet-chat — Multi-agent chat
-
-You have access to a shared chat system...
-```
-
-If no plugins are installed: `No plugins are currently installed. You have no external tools available.`
-
-TOOLS.md is always in sync — adding or removing a plugin triggers agent restarts that rewrite the file automatically. No manual maintenance required.
-
----
-
-## 6. SDUI — Sidebar Slots + iframe Frontend
+## 5. SDUI — Sidebar Slots + iframe Frontend
 
 A plugin can declare a **sidebar slot** to inject a navigation entry into the Dashboard:
 
@@ -163,7 +144,7 @@ The plugin is fully responsible for its own UI — NanoFleet only provides the i
 
 ---
 
-## 7. Database Schema
+## 6. Database Schema
 
 ### `plugins` table
 
@@ -179,7 +160,6 @@ The plugin is fully responsible for its own UI — NanoFleet only provides the i
 | `status` | TEXT | `running`, `stopped`, `error` |
 | `manifestUrl` | TEXT | Source URL of the manifest |
 | `sidebarSlot` | TEXT (JSON) | Serialized sidebar declaration, or NULL |
-| `toolsDoc` | TEXT | Markdown injected into agent TOOLS.md, or NULL |
 | `createdAt` | INTEGER | Unix timestamp |
 
 ### `agent_plugins` table
