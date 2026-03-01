@@ -69,6 +69,7 @@ export function initDb() {
       image text NOT NULL,
       container_name text NOT NULL,
       status text DEFAULT 'running' NOT NULL,
+      version text,
       env_vars text,
       created_at integer NOT NULL
     )
