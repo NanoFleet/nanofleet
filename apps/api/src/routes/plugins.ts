@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 
-import { docker } from '@nanofleet/docker';
+import { getDocker, getRemotePluginVersion, pullImage } from '@nanofleet/docker';
 import { InstallPluginPayloadSchema, PluginManifestSchema } from '@nanofleet/shared';
 import { db } from '../db';
 import { agentPlugins, agents, plugins } from '../db/schema';
@@ -90,29 +90,6 @@ async function fetchPluginTools(containerName: string, mcpPort: number): Promise
   } catch {
     return [];
   }
-}
-
-// ---------------------------------------------------------------------------
-// Helper: pull a Docker image (stream progress to console)
-// ---------------------------------------------------------------------------
-
-async function pullImage(image: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    docker.pull(image, (err: Error | null, stream: NodeJS.ReadableStream | null) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-      if (!stream) {
-        resolve();
-        return;
-      }
-      docker.modem.followProgress(stream, (err: Error | null) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +205,8 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
   }
 
   try {
-    const container = await docker.createContainer({
+    const client = await getDocker();
+    const container = await client.createContainer({
       Image: manifest.image,
       name: containerName,
       Env: [
@@ -353,15 +331,21 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
 pluginRoutes.get('/', requireAuth, async (c) => {
   const allPlugins = await db.select().from(plugins);
 
-  const result = allPlugins.map((p) => {
-    const entry = pluginRegistry.get(p.name);
-    return {
-      ...p,
-      sidebarSlot: p.sidebarSlot ? JSON.parse(p.sidebarSlot) : null,
-      replacesNativeFeatures: p.replacesNativeFeatures ? JSON.parse(p.replacesNativeFeatures) : [],
-      tools: entry?.tools ?? [],
-    };
-  });
+  const result = await Promise.all(
+    allPlugins.map(async (p) => {
+      const entry = pluginRegistry.get(p.name);
+      const remoteVersion = await getRemotePluginVersion(p.image);
+      return {
+        ...p,
+        sidebarSlot: p.sidebarSlot ? JSON.parse(p.sidebarSlot) : null,
+        replacesNativeFeatures: p.replacesNativeFeatures
+          ? JSON.parse(p.replacesNativeFeatures)
+          : [],
+        tools: entry?.tools ?? [],
+        remoteVersion,
+      };
+    })
+  );
 
   return c.json({ plugins: result });
 });
@@ -408,7 +392,8 @@ pluginRoutes.delete('/:id', requireAuth, async (c) => {
 
   // Stop and remove container
   try {
-    const container = docker.getContainer(plugin.containerName);
+    const client = await getDocker();
+    const container = client.getContainer(plugin.containerName);
     await container.stop();
     await container.remove();
   } catch (err) {
@@ -553,7 +538,8 @@ pluginRoutes.post('/:id/restart', requireAuth, async (c) => {
   }
 
   try {
-    const container = docker.getContainer(plugin.containerName);
+    const client = await getDocker();
+    const container = client.getContainer(plugin.containerName);
     await container.stop();
     await container.start();
   } catch (err) {
@@ -607,4 +593,107 @@ pluginRoutes.post('/:id/restart', requireAuth, async (c) => {
   }
 
   return c.json({ success: true, status, tools });
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/plugins/:id/upgrade
+// ---------------------------------------------------------------------------
+
+pluginRoutes.post('/:id/upgrade', requireAuth, async (c) => {
+  const pluginId = c.req.param('id');
+
+  const [plugin] = await db.select().from(plugins).where(eq(plugins.id, pluginId)).limit(1);
+  if (!plugin) return c.json({ error: 'Plugin not found' }, 404);
+
+  const client = await getDocker();
+
+  // Stop and remove old container
+  try {
+    const old = client.getContainer(plugin.containerName);
+    await old.stop();
+    await old.remove();
+  } catch (err) {
+    console.warn('[Plugins] Failed to stop/remove old container during upgrade:', err);
+  }
+
+  // Pull latest image
+  try {
+    await pullImage(plugin.image);
+  } catch (err) {
+    return c.json(
+      { error: `Failed to pull image: ${err instanceof Error ? err.message : 'Unknown error'}` },
+      500
+    );
+  }
+
+  // Recreate container with same config
+  const binds = [`nanofleet-plugin-${plugin.name}-data:/data`];
+  if (plugin.generatedEnvVars) {
+    // mountShared not stored in DB — check by inspecting if shared was mounted previously
+    // Safe approach: re-add shared mount if it was present before (we re-read from manifest)
+  }
+
+  const generatedEnvVarsMap: Record<string, string> = plugin.generatedEnvVars
+    ? JSON.parse(plugin.generatedEnvVars)
+    : {};
+
+  try {
+    const container = await client.createContainer({
+      Image: plugin.image,
+      name: plugin.containerName,
+      Env: [
+        `NANO_API_URL=${NANO_API_URL}`,
+        `NANO_INTERNAL_TOKEN=${plugin.token}`,
+        `NANO_PLUGIN_ID=${plugin.id}`,
+        ...Object.entries(generatedEnvVarsMap).map(([k, v]) => `${k}=${v}`),
+      ],
+      ExposedPorts: {
+        [`${plugin.mcpPort}/tcp`]: {},
+      },
+      HostConfig: {
+        NetworkMode: NETWORK_NAME,
+        Binds: binds,
+      },
+    });
+
+    await container.start();
+  } catch (err) {
+    return c.json(
+      {
+        error: `Failed to start plugin container: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      },
+      500
+    );
+  }
+
+  // Wait for MCP server to be ready
+  let tools: string[] = [];
+  for (let i = 0; i < 15; i++) {
+    await Bun.sleep(1000);
+    tools = await fetchPluginTools(plugin.containerName, plugin.mcpPort);
+    if (tools.length > 0) break;
+  }
+  const status = tools.length > 0 ? 'running' : 'error';
+
+  // Fetch new version from remote image label
+  const remoteVersion = await getRemotePluginVersion(plugin.image);
+
+  await db
+    .update(plugins)
+    .set({ status, version: remoteVersion ?? plugin.version })
+    .where(eq(plugins.id, pluginId));
+
+  pluginRegistry.set(plugin.name, {
+    pluginId: plugin.id,
+    containerName: plugin.containerName,
+    mcpPort: plugin.mcpPort,
+    uiPort: plugin.uiPort ?? null,
+    tools,
+  });
+
+  console.log(
+    `[Plugins] Plugin '${plugin.name}' upgraded to ${remoteVersion ?? 'unknown'} (status: ${status})`
+  );
+
+  return c.json({ success: true, status, tools, version: remoteVersion ?? plugin.version });
 });

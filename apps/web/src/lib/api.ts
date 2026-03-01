@@ -417,6 +417,7 @@ export const api = {
       sidebarSlot: { icon: string; label: string; route: string } | null;
       replacesNativeFeatures: string[];
       tools: string[];
+      remoteVersion: string | null;
       createdAt: string;
     }>;
   }> => {
@@ -450,6 +451,12 @@ export const api = {
     id: string
   ): Promise<{ success: boolean; status: string; tools: string[] }> => {
     return api.post(`/api/plugins/${id}/restart`);
+  },
+
+  upgradePlugin: async (
+    id: string
+  ): Promise<{ success: boolean; status: string; tools: string[]; version: string }> => {
+    return api.post(`/api/plugins/${id}/upgrade`);
   },
 
   getAgentPlugins: async (
