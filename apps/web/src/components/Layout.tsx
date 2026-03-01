@@ -8,6 +8,7 @@ import {
   Menu,
   MessageSquare,
   Plug,
+  Radio,
   Settings,
   X,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ const PLUGIN_ICON_MAP: Record<string, LucideIcon> = {
 
 const navItems = [
   { path: '/', label: 'dashboard.title', icon: LayoutDashboard },
+  { path: '/channels', label: 'nav.channels', icon: Radio },
   { path: '/plugins', label: 'nav.plugins', icon: Plug },
 ];
 

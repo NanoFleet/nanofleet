@@ -156,10 +156,7 @@ export async function getAgentImageVersion(): Promise<string | null> {
       (labels[AGENT_LABEL_LEGACY_KEY] as string | undefined);
     return version ?? null;
   } catch (err) {
-    console.error(
-      `[Docker] Failed to inspect image '${IMAGE_NAME}' in getAgentImageVersion:`,
-      err,
-    );
+    console.error(`[Docker] Failed to inspect image '${IMAGE_NAME}' in getAgentImageVersion:`, err);
     return null;
   }
 }

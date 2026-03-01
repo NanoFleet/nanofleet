@@ -20,6 +20,7 @@
   },
   "nav": {
     "agents": "Agents",
+    "channels": "Channels",
     "plugins": "Plugins",
     "forge": "The Forge",
     "settings": "Settings"
@@ -128,6 +129,21 @@
     "officialInstall": "Install",
     "officialAlreadyInstalled": "Installed",
     "officialDescription": "Official plugins maintained by NanoFleet"
+  },
+  "channels": {
+    "title": "Channels",
+    "subtitle": "Manage messaging channels across all agents",
+    "none": "No channels deployed",
+    "errorLoading": "Failed to load channels",
+    "agent": "Agent",
+    "delete": "Delete channel",
+    "deleted": "Channel deleted",
+    "deleteError": "Failed to delete channel",
+    "deleting": "Deleting channel...",
+    "confirmDelete": "Are you sure you want to delete the {{type}} channel for agent \"{{agent}}\"?",
+    "upgrading": "Upgrading channel...",
+    "upgraded": "Channel upgraded successfully",
+    "upgradeError": "Failed to upgrade channel"
   },
   "agents": {
     "errorLoading": "Failed to load agent",

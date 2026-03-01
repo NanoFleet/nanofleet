@@ -7,6 +7,7 @@ import { Layout } from './components/Layout';
 import { LoadingOverlayProvider } from './components/LoadingOverlay';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AgentPage } from './pages/AgentPage';
+import { ChannelsPage } from './pages/ChannelsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { PluginPage } from './pages/PluginPage';
@@ -53,6 +54,16 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <AgentPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/channels"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ChannelsPage />
                   </Layout>
                 </ProtectedRoute>
               }

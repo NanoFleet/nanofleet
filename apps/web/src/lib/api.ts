@@ -264,11 +264,34 @@ export const api = {
       image: string;
       containerName: string;
       status: string;
+      version: string | null;
       envVars: Record<string, string> | null;
       createdAt: string;
     }>;
   }> => {
     return api.get(`/api/agents/${agentId}/channels`);
+  },
+
+  getChannels: async (): Promise<{
+    channels: Array<{
+      id: string;
+      agentId: string;
+      agentName: string;
+      type: string;
+      image: string;
+      containerName: string;
+      status: string;
+      version: string | null;
+      remoteVersion: string | null;
+      envVars: Record<string, string> | null;
+      createdAt: string;
+    }>;
+  }> => {
+    return api.get('/api/channels');
+  },
+
+  upgradeChannel: async (channelId: string): Promise<{ success: boolean; version: string }> => {
+    return api.post(`/api/channels/upgrade/${channelId}`);
   },
 
   deployChannel: async (

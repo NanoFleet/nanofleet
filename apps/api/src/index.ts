@@ -45,6 +45,7 @@ app.get('/', (c) => c.text('NanoFleet API'));
 app.route('/api/auth', auth);
 app.route('/api/agents', agentRoutes);
 app.route('/api/agents', channelRoutes);
+app.route('/api/channels', channelRoutes);
 app.route('/api/plugins', pluginRoutes);
 app.route('/api/mcp', mcpRoutes);
 app.route('/api/settings', settingsRoutes);

@@ -67,6 +67,7 @@ export const channels = sqliteTable('channels', {
   status: text('status', { enum: ['running', 'stopped', 'error'] })
     .notNull()
     .default('running'),
+  version: text('version'),
   envVars: text('env_vars'), // JSON: non-sensitive env vars for display
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
