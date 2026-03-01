@@ -90,7 +90,6 @@ export type PluginSidebarSlot = z.infer<typeof PluginSidebarSlotSchema>;
 
 export const PluginManifestSchema = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/, 'Plugin name must be lowercase alphanumeric with dashes'),
-  version: z.string(),
   description: z.string().optional(),
   author: z.string().optional(),
   image: z.string().min(1),

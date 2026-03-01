@@ -186,7 +186,10 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
     );
   }
 
-  // 4. Start container
+  // 4. Read version from Docker label
+  const imageVersion = await getRemotePluginVersion(manifest.image);
+
+  // 5. Start container
   const pluginId = crypto.randomUUID();
   const containerName = `nanofleet-plugin-${manifest.name}`;
   const internalToken = crypto.randomUUID();
@@ -260,7 +263,7 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
   await db.insert(plugins).values({
     id: pluginId,
     name: manifest.name,
-    version: manifest.version,
+    version: imageVersion,
     image: manifest.image,
     mcpPort: manifest.mcpPort,
     uiPort: manifest.uiPort ?? null,
@@ -315,7 +318,7 @@ pluginRoutes.post('/install', requireAuth, async (c) => {
     {
       id: pluginId,
       name: manifest.name,
-      version: manifest.version,
+      version: imageVersion,
       status,
       tools,
       sidebarSlot: manifest.sidebar ?? null,
