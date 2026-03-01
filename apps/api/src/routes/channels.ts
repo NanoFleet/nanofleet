@@ -117,7 +117,7 @@ channelRoutes.get('/:agentId/channels', requireAuth, async (c) => {
 
   const result = await Promise.all(
     agentChannels.map(async (ch) => {
-      let status: 'running' | 'error' = 'error';
+      let status: 'running' | 'error';
       try {
         const container = client.getContainer(ch.containerName);
         const info = await container.inspect();
@@ -145,7 +145,7 @@ channelRoutes.get('/', requireAuth, async (c) => {
 
   const result = await Promise.all(
     allChannels.map(async (ch) => {
-      let status: 'running' | 'error' = 'error';
+      let status: 'running' | 'error';
       try {
         const container = client.getContainer(ch.containerName);
         const info = await container.inspect();
