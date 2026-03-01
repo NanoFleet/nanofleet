@@ -1,12 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  AlertCircle,
-  ArrowUp,
-  CheckCircle2,
-  Radio,
-  Trash2,
-  XCircle,
-} from 'lucide-react';
+import { AlertCircle, ArrowUp, CheckCircle2, Radio, Trash2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useTranslation } from 'react-i18next';
@@ -143,18 +136,17 @@ export function ChannelsPage() {
               </div>
 
               <div className="flex items-center gap-1 shrink-0">
-                {channel.remoteVersion &&
-                  channel.remoteVersion !== channel.version && (
-                    <button
-                      type="button"
-                      onClick={() => upgradeMutation.mutate(channel.id)}
-                      disabled={upgradeMutation.isPending}
-                      className="p-1.5 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                      title={`Update available: ${channel.remoteVersion}`}
-                    >
-                      <ArrowUp className="w-4 h-4" />
-                    </button>
-                  )}
+                {channel.remoteVersion && channel.remoteVersion !== channel.version && (
+                  <button
+                    type="button"
+                    onClick={() => upgradeMutation.mutate(channel.id)}
+                    disabled={upgradeMutation.isPending}
+                    className="p-1.5 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                    title={`Update available: ${channel.remoteVersion}`}
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setChannelToDelete(channel)}
