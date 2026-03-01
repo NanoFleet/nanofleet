@@ -172,6 +172,7 @@ async function start() {
     port,
     fetch: app.fetch,
     websocket,
+    idleTimeout: 120,
   });
 }
 
