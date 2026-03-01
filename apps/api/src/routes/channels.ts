@@ -208,13 +208,21 @@ channelRoutes.post('/upgrade/:channelId', requireAuth, async (c) => {
 
   const client = await getDocker();
 
-  // Stop and remove old container
+  // Retrieve all env vars (including sensitive ones) from the running container before removing it
+  let env: string[] = [];
   try {
     const old = client.getContainer(channel.containerName);
+    const info = await old.inspect();
+    env = info.Config?.Env ?? [];
     await old.stop();
     await old.remove();
   } catch (err) {
-    console.warn(`[Channels] Failed to stop/remove old container during upgrade:`, err);
+    return c.json(
+      {
+        error: `Failed to retrieve container config before upgrade: ${err instanceof Error ? err.message : 'Unknown error'}`,
+      },
+      500
+    );
   }
 
   // Pull latest image
@@ -226,13 +234,6 @@ channelRoutes.post('/upgrade/:channelId', requireAuth, async (c) => {
       500
     );
   }
-
-  // Recreate container with same env vars
-  const env: string[] = channel.envVars
-    ? Object.entries(JSON.parse(channel.envVars) as Record<string, string>).map(
-        ([k, v]) => `${k}=${v}`
-      )
-    : [];
 
   try {
     const container = await client.createContainer({
