@@ -1,6 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
+  ArrowUp,
   CheckCircle2,
   CheckSquare,
   KeyRound,
@@ -26,6 +27,7 @@ interface Plugin {
   manifestUrl: string;
   sidebarSlot: { icon: string; label: string; route: string } | null;
   tools: string[];
+  remoteVersion: string | null;
   createdAt: string;
 }
 
@@ -164,6 +166,17 @@ export function PluginsPage() {
     }
   };
 
+  const upgradeMutation = useMutation({
+    mutationFn: (id: string) => api.upgradePlugin(id),
+    onMutate: () => overlay.show(t('plugins.upgrading')),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plugins'] });
+      toast.success(t('plugins.upgraded'));
+    },
+    onError: () => toast.error(t('plugins.upgradeError')),
+    onSettled: () => overlay.hide(),
+  });
+
   const installedNames = new Set(plugins.map((p) => p.name));
 
   return (
@@ -260,6 +273,17 @@ export function PluginsPage() {
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
+                    {plugin.remoteVersion && plugin.remoteVersion !== plugin.version && (
+                      <button
+                        type="button"
+                        onClick={() => upgradeMutation.mutate(plugin.id)}
+                        disabled={upgradeMutation.isPending}
+                        className="p-1.5 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                        title={`Update available: ${plugin.remoteVersion}`}
+                      >
+                        <ArrowUp className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleRestart(plugin)}
