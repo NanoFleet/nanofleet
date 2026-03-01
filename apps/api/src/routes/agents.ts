@@ -6,7 +6,6 @@ import { Hono } from 'hono';
 import {
   docker,
   ensureAgentImage,
-  getAgentImageVersion,
   getDocker,
   getRemoteAgentVersion,
   pullAgentImage,
