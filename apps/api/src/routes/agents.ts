@@ -3,7 +3,13 @@ import { basename, resolve } from 'node:path';
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
-import { docker, ensureAgentImage, getAgentImageVersion } from '@nanofleet/docker';
+import {
+  docker,
+  ensureAgentImage,
+  getDocker,
+  getRemoteAgentVersion,
+  pullAgentImage,
+} from '@nanofleet/docker';
 import {
   AgentPackManifestSchema,
   CreateAgentPayloadSchema,
@@ -262,7 +268,7 @@ function parseTags(raw: string | null): string[] {
 agentRoutes.get('/', requireAuth, async (c) => {
   const [allAgents, agentImageVersion] = await Promise.all([
     db.select().from(agents),
-    getAgentImageVersion(),
+    getRemoteAgentVersion(),
   ]);
 
   return c.json({
@@ -367,9 +373,11 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
   if (!agent) return c.json({ error: 'Agent not found' }, 404);
 
+  const client = await getDocker();
+
   if (agent.containerId) {
     try {
-      const old = docker.getContainer(agent.containerId);
+      const old = client.getContainer(agent.containerId);
       await old.stop();
       await old.remove();
     } catch (error) {
@@ -377,7 +385,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
     }
   }
 
-  const agentVersion = await getAgentImageVersion();
+  const agentVersion = await pullAgentImage();
 
   // Resolve provider key from vault to rebuild env vars
   const model = agent.model ?? '';
@@ -409,7 +417,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
     ...(providerEnvVarName && providerApiKey ? [`${providerEnvVarName}=${providerApiKey}`] : []),
   ];
 
-  const container = await docker.createContainer({
+  const container = await client.createContainer({
     Image: 'ghcr.io/nanofleet/nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
     Env: envVars,
@@ -432,7 +440,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
   await db.update(agents).set({ status: 'running' }).where(eq(agents.id, agentId));
   broadcastAgentStatus(agentId, 'running');
 
-  attachToContainerLogs(docker, containerId, agentId, {
+  attachToContainerLogs(client, containerId, agentId, {
     onLog: (id, log) => broadcastToAgent(id, log),
     onError: (id, error) => console.error(`[LogStream] Agent ${id} error:`, error.message),
   });
