@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
   ArrowUp,
+  BookOpen,
   CheckCircle2,
   CheckSquare,
   KeyRound,
@@ -55,6 +56,12 @@ const OFFICIAL_PLUGINS: OfficialPlugin[] = [
     description: 'Secret manager with per-agent access control',
     icon: KeyRound,
     manifestUrl: 'https://raw.githubusercontent.com/NanoFleet/nanofleet-vault/main/manifest.json',
+  },
+  {
+    name: 'nanofleet-news',
+    description: 'Daily PDF newspaper generated from RSS feeds, delivered every morning',
+    icon: BookOpen,
+    manifestUrl: 'https://raw.githubusercontent.com/NanoFleet/nanofleet-news/main/manifest.json',
   },
 ];
 
