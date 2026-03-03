@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  BookOpen,
   CheckSquare,
   KeyRound,
   LayoutDashboard,
@@ -19,6 +20,7 @@ import { api } from '../lib/api';
 import { useAuthStore } from '../store/auth';
 
 const PLUGIN_ICON_MAP: Record<string, LucideIcon> = {
+  BookOpen,
   CheckSquare,
   KeyRound,
   MessageSquare,
