@@ -63,7 +63,7 @@ export type UpdateAgentPayload = z.infer<typeof UpdateAgentPayloadSchema>;
 
 export const AgentPackManifestSchema = z.object({
   name: z.string(),
-  version: z.string(),
+  version: z.string().optional(),
   author: z.string().optional(),
   model: z.string(),
   requiredEnvVars: z.array(z.string()).optional(),
