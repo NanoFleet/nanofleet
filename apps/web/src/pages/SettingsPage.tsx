@@ -24,6 +24,7 @@ const PRESET_SLOTS: PresetSlot[] = [
   { name: 'anthropic', placeholder: 'sk-ant-...' },
   { name: 'openai', placeholder: 'sk-...' },
   { name: 'gemini', placeholder: 'AIza...' },
+  { name: 'minimax', placeholder: '...' },
 ];
 
 export function SettingsPage({ username: initialUsername }: SettingsPageProps) {
