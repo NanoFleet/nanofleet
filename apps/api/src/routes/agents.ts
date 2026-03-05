@@ -1,4 +1,4 @@
-import { readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -586,22 +586,68 @@ agentRoutes.get('/:id/workspace', requireAuth, async (c) => {
 
   const workspaceDir = agentWorkspaceInternalPath(agentId);
   try {
-    const entries = await readdir(workspaceDir, { recursive: true });
-    const files = await Promise.all(
-      entries
-        .filter((name) => {
-          const parts = (name as string).split('/');
-          // Hide hidden directories (e.g. .db) and their contents; keep .mcp.json
-          return !parts.some((p) => p.startsWith('.') && p !== '.mcp.json');
-        })
-        .map(async (name) => {
-          const fileStat = await stat(resolve(workspaceDir, name as string));
-          return fileStat.isFile() ? { name, size: fileStat.size } : null;
-        })
-    );
-    return c.json({ files: files.filter(Boolean) });
+    const entries = await readdir(workspaceDir, { recursive: true, withFileTypes: true });
+    const seen = new Set<string>();
+    const files: { name: string; size?: number; type: 'file' | 'dir' }[] = [];
+
+    for (const entry of entries) {
+      const name = (entry as { name: string; parentPath: string }).name;
+      const parentPath = (entry as { name: string; parentPath: string }).parentPath;
+      const parentRel = parentPath ? parentPath.slice(workspaceDir.length + 1) : '';
+      const relativePath = parentRel ? `${parentRel}/${name}` : name;
+
+      if (seen.has(relativePath)) continue;
+      seen.add(relativePath);
+
+      const parts = relativePath.split('/');
+      if (parts.some((p: string) => p.startsWith('.') && p !== '.mcp.json')) continue;
+
+      if (entry.isDirectory()) {
+        files.push({ name: relativePath, type: 'dir' });
+      } else if (entry.isFile()) {
+        const fileStat = await stat(resolve(workspaceDir, relativePath));
+        files.push({ name: relativePath, size: fileStat.size, type: 'file' });
+      }
+    }
+
+    return c.json({ files });
   } catch {
     return c.json({ files: [] });
+  }
+});
+
+agentRoutes.post('/:id/workspace/dir', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) {
+    return c.json({ error: 'Agent not found' }, 404);
+  }
+
+  const body = await c.req.json();
+  const dirPath = body.path as string;
+
+  if (!dirPath || typeof dirPath !== 'string') {
+    return c.json({ error: 'path is required' }, 400);
+  }
+
+  if (dirPath.startsWith('/') || dirPath.startsWith('..') || dirPath.includes('../')) {
+    return c.json({ error: 'Invalid path' }, 400);
+  }
+
+  const workspaceDir = agentWorkspaceInternalPath(agentId);
+  const fullPath = resolve(workspaceDir, dirPath);
+
+  if (!fullPath.startsWith(workspaceDir)) {
+    return c.json({ error: 'Invalid path' }, 400);
+  }
+
+  try {
+    await mkdir(fullPath, { recursive: true });
+    return c.json({ success: true, path: dirPath });
+  } catch (err) {
+    console.error('Failed to create directory:', err);
+    return c.json({ error: 'Failed to create directory' }, 500);
   }
 });
 
@@ -664,6 +710,7 @@ agentRoutes.post('/:id/workspace', requireAuth, async (c) => {
 
   const body = await c.req.parseBody();
   const file = body.file;
+  const dir = body.dir as string | undefined;
 
   if (!(file instanceof File)) {
     return c.json({ error: 'No file provided' }, 400);
@@ -679,8 +726,18 @@ agentRoutes.post('/:id/workspace', requireAuth, async (c) => {
     return c.json({ error: 'Invalid filename' }, 400);
   }
 
+  if (dir && (dir.startsWith('/') || dir.startsWith('..') || dir.includes('../'))) {
+    return c.json({ error: 'Invalid directory path' }, 400);
+  }
+
   const workspaceDir = agentWorkspaceInternalPath(agentId);
-  const filePath = resolve(workspaceDir, filename);
+  const targetDir = dir ? resolve(workspaceDir, dir) : workspaceDir;
+
+  if (!targetDir.startsWith(workspaceDir)) {
+    return c.json({ error: 'Invalid path' }, 400);
+  }
+
+  const filePath = resolve(targetDir, filename);
 
   if (!filePath.startsWith(workspaceDir)) {
     return c.json({ error: 'Invalid path' }, 400);
@@ -689,7 +746,8 @@ agentRoutes.post('/:id/workspace', requireAuth, async (c) => {
   const buffer = await file.arrayBuffer();
   await writeFile(filePath, Buffer.from(buffer));
 
-  return c.json({ success: true, filename });
+  const relativePath = dir ? `${dir}/${filename}` : filename;
+  return c.json({ success: true, filename: relativePath });
 });
 
 agentRoutes.delete('/:id/workspace/:filename', requireAuth, async (c) => {
@@ -709,7 +767,7 @@ agentRoutes.delete('/:id/workspace/:filename', requireAuth, async (c) => {
   }
 
   try {
-    await rm(filePath);
+    await rm(filePath, { recursive: true, force: true });
   } catch {
     return c.json({ error: 'File not found' }, 404);
   }
