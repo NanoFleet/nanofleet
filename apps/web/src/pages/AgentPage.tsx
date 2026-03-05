@@ -292,6 +292,7 @@ export function AgentPage() {
           <div className="w-64 border-r border-neutral-200 p-3 flex flex-col overflow-y-auto">
             <AgentFileExplorer
               agentId={agent.id}
+              agentName={agent.name}
               selectedFile={selectedFile}
               onSelectFile={setSelectedFile}
               onFileDeleted={(f) => {

@@ -1,5 +1,7 @@
 import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
+// @ts-ignore - adm-zip sans types
+import AdmZip from 'adm-zip';
 import { and, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 
@@ -648,6 +650,50 @@ agentRoutes.post('/:id/workspace/dir', requireAuth, async (c) => {
   } catch (err) {
     console.error('Failed to create directory:', err);
     return c.json({ error: 'Failed to create directory' }, 500);
+  }
+});
+
+agentRoutes.get('/:id/workspace/backup', requireAuth, async (c) => {
+  const agentId = c.req.param('id');
+
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId)).limit(1);
+  if (!agent) {
+    return c.json({ error: 'Agent not found' }, 404);
+  }
+
+  const workspaceDir = agentWorkspaceInternalPath(agentId);
+
+  try {
+    const zip = new AdmZip();
+
+    async function addDirToZip(dirPath: string, zipPath: string) {
+      const entries = await readdir(dirPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = resolve(dirPath, entry.name);
+        const entryZipPath = zipPath ? `${zipPath}/${entry.name}` : entry.name;
+
+        if (entry.name.startsWith('.') && entry.name !== '.mcp.json') continue;
+
+        if (entry.isDirectory()) {
+          await addDirToZip(fullPath, entryZipPath);
+        } else if (entry.isFile()) {
+          const content = await readFile(fullPath);
+          zip.addFile(entryZipPath, content);
+        }
+      }
+    }
+
+    await addDirToZip(workspaceDir, '');
+
+    const zipBuffer = zip.toBuffer();
+    const filename = `${agent.name.replace(/[^a-z0-9]/gi, '_')}_backup.zip`;
+
+    c.header('Content-Type', 'application/zip');
+    c.header('Content-Disposition', `attachment; filename="${filename}"`);
+    return c.body(zipBuffer);
+  } catch (err) {
+    console.error('Failed to create backup:', err);
+    return c.json({ error: 'Failed to create backup' }, 500);
   }
 });
 
