@@ -133,25 +133,41 @@ function TreeNodeItem({
   const [open, setOpen] = useState(true);
 
   if (node.type === 'dir') {
+    const sortedChildren = [...node.children].sort((a, b) => {
+      if (a.type === 'dir' && b.type !== 'dir') return -1;
+      if (a.type !== 'dir' && b.type === 'dir') return 1;
+      return a.name.localeCompare(b.name);
+    });
+
     return (
       <li>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-1.5 w-full px-2 py-1 text-sm text-neutral-500 hover:text-neutral-700 rounded hover:bg-neutral-100 text-left"
-          style={{ paddingLeft: `${8 + depth * 16}px` }}
-        >
-          {open ? (
-            <ChevronDown className="w-3 h-3 shrink-0" />
-          ) : (
-            <ChevronRight className="w-3 h-3 shrink-0" />
-          )}
-          <Folder className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{node.name}</span>
-        </button>
-        {open && (
+        <div className="flex items-center group">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="flex items-center gap-1.5 flex-1 px-2 py-1 text-sm text-neutral-500 hover:text-neutral-700 rounded hover:bg-neutral-100 text-left"
+            style={{ paddingLeft: `${8 + depth * 16}px` }}
+          >
+            {open ? (
+              <ChevronDown className="w-3 h-3 shrink-0" />
+            ) : (
+              <ChevronRight className="w-3 h-3 shrink-0" />
+            )}
+            <Folder className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{node.name}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(node.path)}
+            className="shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-500 hover:bg-neutral-100 mr-1"
+            title="Delete folder"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        {open && sortedChildren.length > 0 && (
           <ul>
-            {node.children.map((child) => (
+            {sortedChildren.map((child) => (
               <TreeNodeItem
                 key={child.path}
                 node={child}
@@ -214,6 +230,11 @@ export function AgentFileExplorer({ agentId, selectedFile, onSelectFile, onFileD
 
   const files = data?.files ?? [];
   const tree = buildTree(files);
+  const sortedTree = [...tree].sort((a, b) => {
+    if (a.type === 'dir' && b.type !== 'dir') return -1;
+    if (a.type !== 'dir' && b.type === 'dir') return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   const getAllDirs = (nodes: TreeNode[], prefix = ''): { path: string; name: string }[] => {
     const dirs: { path: string; name: string }[] = [];
@@ -460,7 +481,7 @@ export function AgentFileExplorer({ agentId, selectedFile, onSelectFile, onFileD
           <p className="text-xs text-neutral-400 px-1">{t('agents.workspace.noFiles')}</p>
         ) : (
           <ul className="space-y-0.5">
-            {tree.map((node) => (
+            {sortedTree.map((node) => (
               <TreeNodeItem
                 key={node.path}
                 node={node}

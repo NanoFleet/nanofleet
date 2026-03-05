@@ -767,7 +767,7 @@ agentRoutes.delete('/:id/workspace/:filename', requireAuth, async (c) => {
   }
 
   try {
-    await rm(filePath);
+    await rm(filePath, { recursive: true, force: true });
   } catch {
     return c.json({ error: 'File not found' }, 404);
   }
