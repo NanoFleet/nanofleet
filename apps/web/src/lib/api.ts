@@ -347,7 +347,9 @@ export const api = {
     return response.json();
   },
 
-  listAgentFiles: async (id: string): Promise<{ files: Array<{ name: string; size: number }> }> => {
+  listAgentFiles: async (
+    id: string
+  ): Promise<{ files: Array<{ name: string; size?: number; type: 'file' | 'dir' }> }> => {
     return api.get(`/api/agents/${id}/workspace`);
   },
 
@@ -391,10 +393,14 @@ export const api = {
 
   uploadAgentFile: async (
     id: string,
-    file: File
+    file: File,
+    dir?: string
   ): Promise<{ success: boolean; filename: string }> => {
     const formData = new FormData();
     formData.append('file', file);
+    if (dir) {
+      formData.append('dir', dir);
+    }
 
     const token = getAccessToken();
     const response = await fetch(`${API_BASE_URL}/api/agents/${id}/workspace`, {
@@ -409,6 +415,18 @@ export const api = {
       throw new Error(error.error || 'Upload failed');
     }
 
+    return response.json();
+  },
+
+  createAgentDir: async (id: string, path: string): Promise<{ success: boolean; path: string }> => {
+    const response = await fetchWithAuth(`${API_BASE_URL}/api/agents/${id}/workspace/dir`, {
+      method: 'POST',
+      body: JSON.stringify({ path }),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to create directory' }));
+      throw new Error(error.error || 'Failed to create directory');
+    }
     return response.json();
   },
 
