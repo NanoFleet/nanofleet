@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronDown,
   ChevronRight,
+  Download,
   FileText,
   Folder,
   FolderOpen,
@@ -18,6 +19,7 @@ import { api } from '../lib/api';
 
 interface Props {
   agentId: string;
+  agentName: string;
   selectedFile: string | null;
   onSelectFile: (filename: string) => void;
   onFileDeleted?: (filename: string) => void;
@@ -211,7 +213,13 @@ function TreeNodeItem({
   );
 }
 
-export function AgentFileExplorer({ agentId, selectedFile, onSelectFile, onFileDeleted }: Props) {
+export function AgentFileExplorer({
+  agentId,
+  agentName,
+  selectedFile,
+  onSelectFile,
+  onFileDeleted,
+}: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -302,6 +310,15 @@ export function AgentFileExplorer({ agentId, selectedFile, onSelectFile, onFileD
     createDirMutation.mutate(path);
   };
 
+  const handleBackup = async () => {
+    try {
+      await api.downloadAgentBackup(agentId, agentName);
+      toast.success('Backup downloaded');
+    } catch {
+      toast.error('Backup failed');
+    }
+  };
+
   return (
     <div className="flex flex-col gap-2 h-full">
       <div className="flex gap-2">
@@ -323,6 +340,14 @@ export function AgentFileExplorer({ agentId, selectedFile, onSelectFile, onFileD
           title="Create folder"
         >
           <Plus className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleBackup}
+          className="flex items-center justify-center p-2 text-neutral-700 bg-neutral-100 hover:bg-neutral-200 rounded"
+          title="Download backup"
+        >
+          <Download className="w-4 h-4" />
         </button>
       </div>
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />

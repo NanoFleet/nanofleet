@@ -430,6 +430,29 @@ export const api = {
     return response.json();
   },
 
+  downloadAgentBackup: async (id: string, agentName: string): Promise<void> => {
+    const token = getAccessToken();
+    const response = await fetch(`${API_BASE_URL}/api/agents/${id}/workspace/backup`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Backup failed' }));
+      throw new Error(error.error || 'Backup failed');
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${agentName.replace(/[^a-z0-9]/gi, '_')}_backup.zip`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  },
+
   deleteAgent: async (id: string): Promise<{ success: boolean }> => {
     const response = await fetchWithAuth(`${API_BASE_URL}/api/agents/${id}`, {
       method: 'DELETE',
