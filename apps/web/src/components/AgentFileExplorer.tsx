@@ -5,7 +5,6 @@ import {
   Download,
   FileText,
   Folder,
-  FolderOpen,
   Plus,
   Trash2,
   Upload,
@@ -81,7 +80,6 @@ function buildTree(files: FileEntry[]): TreeNode[] {
 
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      const path = parts.slice(0, i + 1).join('/');
       const node = current.find((n) => n.name === part);
 
       if (node) {
@@ -222,7 +220,6 @@ export function AgentFileExplorer({
 }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [showUploadModal, setShowUploadModal] = useState(false);
