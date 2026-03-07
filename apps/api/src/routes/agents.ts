@@ -132,7 +132,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
           400
         );
       }
-      envVars[varName] = decrypt(keyRecord.encryptedValue);
+      envVars[varName] = await decrypt(keyRecord.encryptedValue);
     }
   }
 
@@ -150,7 +150,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
         )
         .limit(1);
       const keyRecord = keyRecords[0];
-      return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+      return keyRecord ? await decrypt(keyRecord.encryptedValue) : null;
     });
     providerEnvVarName = result.envVarName;
     providerApiKey = result.apiKey;
@@ -407,7 +407,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
           .from(apiKeys)
           .where(eq(apiKeys.keyName, name))
           .limit(1);
-        return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+        return keyRecord ? await decrypt(keyRecord.encryptedValue) : null;
       });
       providerEnvVarName = result.envVarName;
       providerApiKey = result.apiKey;

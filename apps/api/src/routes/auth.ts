@@ -21,7 +21,29 @@ import type { AuthContext } from '../middleware/auth';
 
 export const auth = new Hono();
 
+// Simple in-memory rate limiter: 10 attempts per 15 minutes per IP
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const WINDOW_MS = 15 * 60 * 1000;
+  const MAX_ATTEMPTS = 10;
+  const record = loginAttempts.get(ip);
+  if (!record || now > record.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  if (record.count >= MAX_ATTEMPTS) return false;
+  record.count++;
+  return true;
+}
+
 auth.post('/login', async (c) => {
+  const ip = c.req.header('x-real-ip') ?? c.req.header('x-forwarded-for') ?? 'unknown';
+  if (!checkRateLimit(ip)) {
+    return c.json({ error: 'Too many login attempts. Please try again later.' }, 429);
+  }
+
   const body = await c.req.json();
   const parsed = LoginPayloadSchema.safeParse(body);
 

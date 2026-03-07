@@ -42,7 +42,7 @@ settingsRoutes.post('/keys', requireAuth, async (c) => {
     .where(and(eq(apiKeys.userId, user.userId), eq(apiKeys.keyName, keyNameLower)))
     .limit(1);
 
-  const encryptedValue = encrypt(value);
+  const encryptedValue = await encrypt(value);
 
   if (existing.length > 0) {
     const existingKey = existing[0];
