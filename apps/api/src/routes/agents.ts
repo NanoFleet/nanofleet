@@ -132,7 +132,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
           400
         );
       }
-      envVars[varName] = decrypt(keyRecord.encryptedValue);
+      envVars[varName] = await decrypt(keyRecord.encryptedValue);
     }
   }
 
@@ -150,7 +150,7 @@ agentRoutes.post('/', requireAuth, async (c) => {
         )
         .limit(1);
       const keyRecord = keyRecords[0];
-      return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+      return keyRecord ? await decrypt(keyRecord.encryptedValue) : null;
     });
     providerEnvVarName = result.envVarName;
     providerApiKey = result.apiKey;
@@ -215,6 +215,12 @@ agentRoutes.post('/', requireAuth, async (c) => {
       'PORT=4111',
       `${providerEnvVarName}=${providerApiKey}`,
     ],
+    Healthcheck: {
+      Test: ['CMD-SHELL', "bun -e \"process.exit((await fetch('http://localhost:4111/health')).ok ? 0 : 1)\""],
+      Interval: 30000000000,
+      Timeout: 10000000000,
+      Retries: 3,
+    },
     HostConfig: {
       Binds: [`${agentWorkspaceHostPath(agentId)}:/workspace`, `${SHARED_HOST_DIR}:/shared`],
       NetworkMode: NETWORK_NAME,
@@ -401,7 +407,7 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
           .from(apiKeys)
           .where(eq(apiKeys.keyName, name))
           .limit(1);
-        return keyRecord ? decrypt(keyRecord.encryptedValue) : null;
+        return keyRecord ? await decrypt(keyRecord.encryptedValue) : null;
       });
       providerEnvVarName = result.envVarName;
       providerApiKey = result.apiKey;
@@ -423,6 +429,12 @@ agentRoutes.post('/:id/upgrade', requireAuth, async (c) => {
     Image: 'ghcr.io/nanofleet/nanofleet-agent:latest',
     name: `nanofleet-agent-${agentId}`,
     Env: envVars,
+    Healthcheck: {
+      Test: ['CMD-SHELL', "bun -e \"process.exit((await fetch('http://localhost:4111/health')).ok ? 0 : 1)\""],
+      Interval: 30000000000,
+      Timeout: 10000000000,
+      Retries: 3,
+    },
     HostConfig: {
       Binds: [`${agentWorkspaceHostPath(agentId)}:/workspace`, `${SHARED_HOST_DIR}:/shared`],
       NetworkMode: NETWORK_NAME,
