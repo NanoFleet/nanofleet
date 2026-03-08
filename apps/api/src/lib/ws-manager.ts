@@ -1,12 +1,36 @@
 import type { ServerWebSocket } from 'bun';
 
-const clients: Map<string, Set<ServerWebSocket<{ userId: string; agentId?: string }>>> = new Map();
+type WS = ServerWebSocket<{ userId: string; agentId?: string }>;
 
-export function subscribeToAgent(
-  ws: ServerWebSocket<{ userId: string; agentId?: string }>,
-  agentId: string,
-  userId: string
-): void {
+const clients: Map<string, Set<WS>> = new Map();
+
+const allClients = new Set<WS>();
+let pingInterval: ReturnType<typeof setInterval> | null = null;
+
+export function registerClient(ws: WS): void {
+  allClients.add(ws);
+  if (!pingInterval) {
+    pingInterval = setInterval(() => {
+      for (const client of allClients) {
+        try {
+          client.ping();
+        } catch {
+          allClients.delete(client);
+        }
+      }
+    }, 30_000);
+  }
+}
+
+export function unregisterClient(ws: WS): void {
+  allClients.delete(ws);
+  if (allClients.size === 0 && pingInterval) {
+    clearInterval(pingInterval);
+    pingInterval = null;
+  }
+}
+
+export function subscribeToAgent(ws: WS, agentId: string, userId: string): void {
   const wsData = ws.data;
   const room = `agent:${agentId}`;
 
@@ -23,9 +47,7 @@ export function subscribeToAgent(
   }
 }
 
-export function unsubscribeFromAgent(
-  ws: ServerWebSocket<{ userId: string; agentId?: string }>
-): void {
+export function unsubscribeFromAgent(ws: WS): void {
   const wsData = ws.data;
   if (!wsData) return;
 
@@ -48,9 +70,7 @@ export function broadcastToAgent(agentId: string, message: string): void {
   const room = `agent:${agentId}`;
   const roomClients = clients.get(room);
 
-  if (!roomClients || roomClients.size === 0) {
-    return;
-  }
+  if (!roomClients || roomClients.size === 0) return;
 
   const payload = JSON.stringify({
     type: 'log',
