@@ -138,28 +138,33 @@ app.get(
   },
   upgradeWebSocket((c) => {
     const wsUser = c.get('wsUser');
+    // biome-ignore lint/suspicious/noExplicitAny: Hono creates a new WSContext wrapper per callback, so ws references differ between onOpen/onClose. We capture the raw Bun socket once in onOpen and reuse it.
+    let rawWs: any = null;
     return {
       onOpen(_event, ws) {
-        registerClient(ws as never);
+        rawWs = (ws as never as { raw: unknown }).raw ?? ws;
+        registerClient(rawWs as never);
       },
       onMessage(event, ws) {
         try {
           const message = JSON.parse(event.data as string);
 
           if (message.type === 'subscribe' && message.agentId) {
-            subscribeToAgent(ws as never, message.agentId, wsUser?.userId);
+            subscribeToAgent(rawWs as never, message.agentId, wsUser?.userId);
             ws.send(JSON.stringify({ type: 'subscribed', agentId: message.agentId }));
           } else if (message.type === 'unsubscribe' && message.agentId) {
-            unsubscribeFromAgent(ws as never);
+            unsubscribeFromAgent(rawWs as never);
             ws.send(JSON.stringify({ type: 'unsubscribed', agentId: message.agentId }));
           }
         } catch (error) {
           console.error('[WS] Failed to parse message:', error);
         }
       },
-      onClose(_event, ws) {
-        unregisterClient(ws as never);
-        unsubscribeFromAgent(ws as never);
+      onClose() {
+        if (rawWs) {
+          unregisterClient(rawWs as never);
+          unsubscribeFromAgent(rawWs as never);
+        }
       },
     };
   })
