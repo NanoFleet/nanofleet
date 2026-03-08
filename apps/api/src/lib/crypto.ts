@@ -31,7 +31,7 @@ export async function encrypt(text: string): Promise<string> {
   return AES_PREFIX + Buffer.from(result).toString('base64');
 }
 
-// Legacy XOR decrypt for values stored before AES-GCM migration
+// TODO: remove legacy XOR decrypt once all stored values have been re-saved with AES-GCM (v2: prefix)
 function xorDecrypt(encrypted: string): string {
   const key = getRawKey();
   const data = Buffer.from(encrypted, 'base64');
