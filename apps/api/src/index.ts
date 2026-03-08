@@ -11,7 +11,12 @@ import { agents, plugins } from './db/schema';
 import { ensureSharedDir, ensureSharedWorkspaceDir } from './lib/agent-config';
 import { checkEncryptionKey } from './lib/crypto';
 import { initDockerInfrastructure } from './lib/docker';
-import { subscribeToAgent, unsubscribeFromAgent } from './lib/ws-manager';
+import {
+  registerClient,
+  subscribeToAgent,
+  unregisterClient,
+  unsubscribeFromAgent,
+} from './lib/ws-manager';
 import { requireAuth } from './middleware/auth';
 import { wsAuthMiddleware } from './middleware/websocket';
 import { agentRoutes } from './routes/agents';
@@ -134,7 +139,9 @@ app.get(
   upgradeWebSocket((c) => {
     const wsUser = c.get('wsUser');
     return {
-      onOpen(_event, _ws) {},
+      onOpen(_event, ws) {
+        registerClient(ws as never);
+      },
       onMessage(event, ws) {
         try {
           const message = JSON.parse(event.data as string);
@@ -151,6 +158,7 @@ app.get(
         }
       },
       onClose(_event, ws) {
+        unregisterClient(ws as never);
         unsubscribeFromAgent(ws as never);
       },
     };
