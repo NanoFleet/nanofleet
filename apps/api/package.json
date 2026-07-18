@@ -12,7 +12,7 @@
   "dependencies": {
     "@nanofleet/docker": "workspace:*",
     "@nanofleet/shared": "workspace:*",
-    "adm-zip": "^0.5.16",
+    "adm-zip": "^0.6.0",
     "dockerode": "^4.0.9",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.7.11",
